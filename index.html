@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>職員シフト管理</title>
+  <title>園シフト管理</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -19,7 +19,10 @@
       <i class="fa-brands fa-line text-2xl"></i>
       <h1 class="font-bold text-base">シフト管理 LIFF</h1>
     </div>
-    <span id="user-name" class="text-xs bg-white text-gray-800 px-3 py-1 rounded-full font-semibold shadow">認証中...</span>
+    <div class="text-right">
+      <span id="user-name" class="text-xs bg-white text-gray-800 px-3 py-1 rounded-full font-semibold shadow block">認証中...</span>
+      <span id="user-role" class="text-[10px] text-green-100 font-bold hidden"></span>
+    </div>
   </header>
 
   <main class="max-w-md mx-auto p-4 space-y-4">
@@ -61,29 +64,53 @@
     <!-- アプリメイン画面 -->
     <div id="app-content" class="space-y-4 hidden">
 
-      <div class="bg-white rounded-xl shadow-sm p-1 flex text-xs font-bold text-gray-600">
-        <button id="btn-tab-sub" onclick="switchTab('sub')" class="flex-1 py-2 rounded-lg bg-green-500 text-white">希望シフト提出</button>
-        <button id="btn-tab-view" onclick="switchTab('view')" class="flex-1 py-2 rounded-lg hover:text-green-600">確定シフト確認</button>
+      <!-- 対象月の選択ヘッダー -->
+      <div class="bg-white p-3 rounded-xl shadow-sm flex justify-between items-center">
+        <label class="text-xs font-bold text-gray-600">対象年月:</label>
+        <input type="month" id="target-month" class="p-1.5 border rounded-lg text-sm font-bold text-gray-700 bg-gray-50" onchange="onMonthChange()">
       </div>
 
-      <!-- ① 希望シフト提出画面 -->
+      <!-- タブ切り替え -->
+      <div class="bg-white rounded-xl shadow-sm p-1 flex text-xs font-bold text-gray-600">
+        <button id="btn-tab-sub" onclick="switchTab('sub')" class="flex-1 py-2 rounded-lg bg-green-500 text-white">1ヶ月希望提出</button>
+        <button id="btn-tab-view" onclick="switchTab('view')" class="flex-1 py-2 rounded-lg hover:text-green-600">確定シフト確認</button>
+        <button id="btn-tab-admin" onclick="switchTab('admin')" class="flex-1 py-2 rounded-lg hover:text-red-600 hidden text-red-600">★管理者権限</button>
+      </div>
+
+      <!-- ① 1ヶ月希望シフト提出画面 -->
       <div id="sec-sub" class="bg-white p-4 rounded-xl shadow-sm space-y-4">
         <div class="border-b pb-2 flex justify-between items-center">
-          <h2 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-clock text-green-500 mr-1"></i> 希望勤務時間の入力</h2>
-          <span class="text-[10px] text-gray-400">直近4日分</span>
+          <h2 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-calendar-days text-green-500 mr-1"></i> 希望勤務日・時間</h2>
+          <span class="text-[10px] text-gray-400">1ヶ月分一括設定</span>
         </div>
 
-        <div id="shift-input-list" class="space-y-3 text-xs"></div>
+        <div id="shift-input-list" class="space-y-2 text-xs max-h-[60vh] overflow-y-auto pr-1"></div>
 
-        <button onclick="submitRequests()" class="w-full line-green line-green-hover text-white py-3 rounded-lg font-bold text-sm shadow">
-          <i class="fa-solid fa-paper-plane mr-1"></i> 希望シフトを送信する
+        <button onclick="submitRequests()" class="w-full line-green line-green-hover text-white py-3 rounded-lg font-bold text-sm shadow sticky bottom-0">
+          <i class="fa-solid fa-paper-plane mr-1"></i> 1ヶ月分の希望を送信する
         </button>
       </div>
 
       <!-- ② 確定シフト確認画面 -->
       <div id="sec-view" class="bg-white p-4 rounded-xl shadow-sm space-y-3 hidden">
         <h2 class="font-bold text-sm text-gray-700 border-b pb-2"><i class="fa-solid fa-calendar-check text-blue-500 mr-1"></i> あなたの確定シフト</h2>
-        <div id="confirmed-list" class="space-y-2 text-xs"></div>
+        <div id="confirmed-list" class="space-y-2 text-xs max-h-[60vh] overflow-y-auto"></div>
+      </div>
+
+      <!-- ③ 管理者用コントロールパネル -->
+      <div id="sec-admin" class="bg-white p-4 rounded-xl shadow-sm space-y-4 hidden border-2 border-red-200">
+        <div class="border-b pb-2 text-red-600 flex items-center space-x-2">
+          <i class="fa-solid fa-user-shield text-lg"></i>
+          <h2 class="font-bold text-sm">管理者専用メニュー</h2>
+        </div>
+
+        <p class="text-xs text-gray-600 leading-relaxed">
+          全職員から提出された選択月（<span id="admin-target-month-label" class="font-bold"></span>）の希望データをもとに、自動シフト生成を実行して「確定シフト」を作成します。
+        </p>
+
+        <button onclick="runAutoShiftGeneration()" class="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-bold text-sm shadow">
+          <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 選択月の確定シフトを自動生成する
+        </button>
       </div>
 
     </div>
@@ -92,12 +119,19 @@
 
   <script>
     const LIFF_ID = "2012121277-rbcBxEHH";
-    // ★Step 1で取得したGASのWeb API URLを貼り付けます
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyPcR-HFwaArgWAZi_ABCv3xqnQ9N3fxySIVX8CoRXtagttyT1YGPZhHgX6uxx--dN5Mw/exec"; 
     
     let userId = "";
+    let userRole = "一般";
+    let currentMonthDays = [];
 
     window.onload = function() {
+      // デフォルトで翌月を選択
+      const today = new Date();
+      today.setMonth(today.getMonth() + 1);
+      const nextMonthStr = today.toISOString().slice(0, 7);
+      document.getElementById('target-month').value = nextMonthStr;
+
       liff.init({ liffId: LIFF_ID })
         .then(() => {
           if (!liff.isLoggedIn()) {
@@ -121,24 +155,28 @@
     }
 
     function checkUserProfile() {
-      document.getElementById('loading-msg').innerText = "スプレッドシートデータ取得中...";
+      document.getElementById('loading-msg').innerText = "ユーザー情報確認中...";
       
       postToGas({ action: 'checkProfile', userId: userId })
         .then(res => {
           document.getElementById('loading').classList.add('hidden');
           if (res.isRegistered) {
+            userRole = res.data.role;
             document.getElementById('user-name').innerText = res.data.name + " さん";
+            
+            if (userRole === '管理者') {
+              const roleTag = document.getElementById('user-role');
+              roleTag.innerText = "【管理者】";
+              roleTag.classList.remove('hidden');
+              document.getElementById('btn-tab-admin').classList.remove('hidden');
+            }
+
             document.getElementById('app-content').classList.remove('hidden');
-            renderInputForm();
-            loadConfirmedShifts();
+            onMonthChange();
           } else {
             document.getElementById('user-name').innerText = "新規ユーザー";
             document.getElementById('sec-register').classList.remove('hidden');
           }
-        })
-        .catch(err => {
-          document.getElementById('loading-msg').innerText = "通信エラー発生";
-          alert("【GAS通信エラー】\n" + err.message);
         });
     }
 
@@ -146,10 +184,7 @@
       const name = document.getElementById('input-staff-name').value.trim();
       const jobType = document.getElementById('select-job-type').value;
 
-      if (!name) {
-        alert("お名前を入力してください。");
-        return;
-      }
+      if (!name) { alert("お名前を入力してください。"); return; }
 
       document.getElementById('loading').classList.remove('hidden');
       document.getElementById('sec-register').classList.add('hidden');
@@ -159,46 +194,61 @@
           if (res.success) {
             alert("登録が完了しました！");
             checkUserProfile();
-          } else {
-            alert("登録エラー: " + res.message);
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('sec-register').classList.remove('hidden');
           }
         });
     }
 
-    const targetDates = ['2026-11-01', '2026-11-02', '2026-11-04', '2026-11-05'];
-    function renderInputForm() {
+    function onMonthChange() {
+      const yearMonth = document.getElementById('target-month').value;
+      document.getElementById('admin-target-month-label').innerText = yearMonth;
+      generateMonthCalendar(yearMonth);
+      loadConfirmedShifts();
+    }
+
+    // 1ヶ月分の日付リストを動的生成
+    function generateMonthCalendar(yearMonth) {
+      const [year, month] = yearMonth.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      currentMonthDays = [];
+
       const container = document.getElementById('shift-input-list');
       container.innerHTML = '';
 
-      targetDates.forEach(date => {
+      const weekNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(year, month - 1, day);
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayOfWeek = weekNames[dateObj.getDay()];
+        const isSunday = dateObj.getDay() === 0;
+
+        currentMonthDays.push(dateStr);
+
         const div = document.createElement('div');
-        div.className = "p-3 border rounded-lg bg-gray-50 space-y-2";
+        div.className = `p-2.5 border rounded-lg flex items-center justify-between text-xs ${isSunday ? 'bg-red-50 border-red-200' : 'bg-gray-50'}`;
         div.innerHTML = `
-          <div class="font-bold text-gray-700">${date}</div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] text-gray-500">区分</label>
-              <select id="type-${date}" class="w-full p-1.5 border rounded bg-white" onchange="toggleTimeInput('${date}')">
-                <option value="出勤希望">出勤可能</option>
-                <option value="休み希望">休み希望</option>
-              </select>
-            </div>
-            <div id="time-box-${date}" class="flex items-center space-x-1">
-              <input type="time" id="start-${date}" value="08:30" class="w-full p-1 border rounded bg-white">
-              <span>〜</span>
-              <input type="time" id="end-${date}" value="17:30" class="w-full p-1 border rounded bg-white">
+          <div class="font-bold ${isSunday ? 'text-red-600' : 'text-gray-700'} w-24">
+            ${month}/${day} (${dayOfWeek})
+          </div>
+          <div class="flex items-center space-x-1 flex-1">
+            <select id="type-${dateStr}" class="p-1 border rounded bg-white text-[11px]" onchange="toggleTimeInput('${dateStr}')">
+              <option value="出勤希望">出勤可能</option>
+              <option value="休み希望" ${isSunday ? 'selected' : ''}>休み希望</option>
+            </select>
+            <div id="time-box-${dateStr}" class="flex items-center space-x-0.5 ${isSunday ? 'opacity-30 pointer-events-none' : ''}">
+              <input type="time" id="start-${dateStr}" value="08:30" class="p-1 border rounded bg-white text-[11px]">
+              <span>-</span>
+              <input type="time" id="end-${dateStr}" value="17:30" class="p-1 border rounded bg-white text-[11px]">
             </div>
           </div>
         `;
         container.appendChild(div);
-      });
+      }
     }
 
-    function toggleTimeInput(date) {
-      const type = document.getElementById(`type-${date}`).value;
-      const box = document.getElementById(`time-box-${date}`);
+    function toggleTimeInput(dateStr) {
+      const type = document.getElementById(`type-${dateStr}`).value;
+      const box = document.getElementById(`time-box-${dateStr}`);
       if (type === '休み希望') {
         box.classList.add('opacity-30', 'pointer-events-none');
       } else {
@@ -207,55 +257,88 @@
     }
 
     function submitRequests() {
+      const yearMonth = document.getElementById('target-month').value;
       let requests = [];
-      targetDates.forEach(date => {
-        const type = document.getElementById(`type-${date}`).value;
-        const startTime = document.getElementById(`start-${date}`).value;
-        const endTime = document.getElementById(`end-${date}`).value;
+
+      currentMonthDays.forEach(dateStr => {
+        const type = document.getElementById(`type-${dateStr}`).value;
+        const startTime = document.getElementById(`start-${dateStr}`).value;
+        const endTime = document.getElementById(`end-${dateStr}`).value;
 
         requests.push({
-          date: date,
+          date: dateStr,
           type: type,
           startTime: type === '出勤希望' ? startTime : '',
           endTime: type === '出勤希望' ? endTime : ''
         });
       });
 
-      postToGas({ action: 'saveRequests', userId: userId, requests: requests })
+      document.getElementById('loading').classList.remove('hidden');
+
+      postToGas({ action: 'saveRequests', userId: userId, yearMonth: yearMonth, requests: requests })
         .then(res => {
-          alert('希望シフトを送信しました！');
+          document.getElementById('loading').classList.add('hidden');
+          if (res.success) {
+            alert(`${yearMonth} 分の希望シフト（1ヶ月分）を送信しました！`);
+          }
         });
     }
 
     function loadConfirmedShifts() {
-      postToGas({ action: 'getConfirmed', userId: userId })
+      const yearMonth = document.getElementById('target-month').value;
+      postToGas({ action: 'getConfirmed', userId: userId, yearMonth: yearMonth })
         .then(res => {
           const list = document.getElementById('confirmed-list');
           list.innerHTML = '';
           if (res.success && res.data.length > 0) {
             res.data.forEach(s => {
               const item = document.createElement('div');
-              item.className = "flex justify-between p-2 bg-green-50 border border-green-200 rounded font-semibold text-green-900";
+              item.className = "flex justify-between p-2.5 bg-green-50 border border-green-200 rounded font-semibold text-green-900";
               item.innerHTML = `<span>${s.date}</span><span>${s.startTime} 〜 ${s.endTime}</span>`;
               list.appendChild(item);
             });
           } else {
-            list.innerHTML = '<p class="text-center text-gray-400 py-4">確定シフトはありません。</p>';
+            list.innerHTML = `<p class="text-center text-gray-400 py-6">${yearMonth} の確定シフトはまだありません。</p>`;
+          }
+        });
+    }
+
+    function runAutoShiftGeneration() {
+      const yearMonth = document.getElementById('target-month').value;
+      if (!confirm(`${yearMonth} 分の自動シフト生成を実行しますか？`)) return;
+
+      document.getElementById('loading').classList.remove('hidden');
+
+      postToGas({ action: 'generateAutoShift', userId: userId, yearMonth: yearMonth })
+        .then(res => {
+          document.getElementById('loading').classList.add('hidden');
+          if (res.success) {
+            alert(`自動作成が完了しました！（${res.count}件のシフトを出力）`);
+            loadConfirmedShifts();
+          } else {
+            alert(`エラー: ${res.message}`);
           }
         });
     }
 
     function switchTab(tab) {
+      document.getElementById('sec-sub').classList.add('hidden');
+      document.getElementById('sec-view').classList.add('hidden');
+      document.getElementById('sec-admin').classList.add('hidden');
+
+      document.getElementById('btn-tab-sub').className = "flex-1 py-2 rounded-lg hover:text-green-600";
+      document.getElementById('btn-tab-view').className = "flex-1 py-2 rounded-lg hover:text-green-600";
+      document.getElementById('btn-tab-admin').className = "flex-1 py-2 rounded-lg text-red-600 hover:text-red-700";
+
       if (tab === 'sub') {
         document.getElementById('sec-sub').classList.remove('hidden');
-        document.getElementById('sec-view').classList.add('hidden');
         document.getElementById('btn-tab-sub').className = "flex-1 py-2 rounded-lg bg-green-500 text-white font-bold";
-        document.getElementById('btn-tab-view').className = "flex-1 py-2 rounded-lg text-gray-600 font-bold";
-      } else {
-        document.getElementById('sec-sub').classList.add('hidden');
+      } else if (tab === 'view') {
         document.getElementById('sec-view').classList.remove('hidden');
-        document.getElementById('btn-tab-sub').className = "flex-1 py-2 rounded-lg text-gray-600 font-bold";
         document.getElementById('btn-tab-view').className = "flex-1 py-2 rounded-lg bg-green-500 text-white font-bold";
+      } else if (tab === 'admin') {
+        document.getElementById('sec-admin').classList.remove('hidden');
+        document.getElementById('btn-tab-admin').className = "flex-1 py-2 rounded-lg bg-red-500 text-white font-bold";
       }
     }
   </script>
