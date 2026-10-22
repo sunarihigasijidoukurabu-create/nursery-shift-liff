@@ -69,15 +69,14 @@
 
       <!-- タブ切り替え -->
       <div class="bg-white rounded-xl shadow-sm p-1 flex text-xs font-bold text-gray-600">
-        <button id="btn-tab-sub" onclick="switchTab('sub')" class="flex-1 py-2 rounded-lg bg-green-500 text-white">1ヶ月希望提出</button>
-        <button id="btn-tab-view" onclick="switchTab('view')" class="flex-1 py-2 rounded-lg hover:text-green-600">確定シフト確認</button>
+        <button id="btn-tab-sub" onclick="switchTab('sub')" class="flex-1 py-2 rounded-lg bg-green-500 text-white">希望提出</button>
+        <button id="btn-tab-view" onclick="switchTab('view')" class="flex-1 py-2 rounded-lg hover:text-green-600">確定確認</button>
         <button id="btn-tab-admin" onclick="switchTab('admin')" class="flex-1 py-2 rounded-lg hover:text-red-600 hidden text-red-600">★管理者機能</button>
       </div>
 
       <!-- ① 1ヶ月希望シフト提出画面 -->
       <div id="sec-sub" class="bg-white p-4 rounded-xl shadow-sm space-y-4">
         
-        <!-- 一括入力機能アコーディオン -->
         <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-xs space-y-2">
           <div class="font-bold text-green-800 flex justify-between items-center">
             <span><i class="fa-solid fa-bolt mr-1"></i> 希望シフトの一括入力</span>
@@ -122,33 +121,44 @@
       <!-- ③ 管理者専用画面 -->
       <div id="sec-admin" class="space-y-4 hidden">
 
-        <!-- 1. 自動作成コントロール -->
+        <!-- 1. 自動作成・手動調整 -->
         <div class="bg-white p-4 rounded-xl shadow-sm space-y-3 border-2 border-red-200">
-          <h2 class="font-bold text-sm text-red-600 border-b pb-2"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 確定シフトの自動生成</h2>
+          <h2 class="font-bold text-sm text-red-600 border-b pb-2"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> シフト生成・手動調整</h2>
           <p class="text-xs text-gray-600">
-            選択月（<span id="admin-target-month-label" class="font-bold"></span>）の提出希望をもとにシフトを作成します。
+            選択月（<span id="admin-target-month-label" class="font-bold"></span>）の希望データから作成します。
           </p>
           <button onclick="runAutoShiftGeneration()" class="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-bold text-xs shadow">
-            選択月の確定シフトを自動生成する
+            選択月のシフトを自動作成・再生成する
           </button>
+
+          <div class="border-t pt-3 space-y-2">
+            <h3 class="font-bold text-xs text-gray-700">【確定シフトの手動微調整】</h3>
+            <div id="admin-shift-edit-list" class="space-y-2 text-xs max-h-[35vh] overflow-y-auto pr-1"></div>
+            <button onclick="saveAdminShiftEdits()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold text-xs shadow">
+              変更したシフト内容を保存する
+            </button>
+          </div>
         </div>
 
-        <!-- 2. 職員ステータス管理 -->
-        <div class="bg-white p-4 rounded-xl shadow-sm space-y-3">
-          <h2 class="font-bold text-sm text-gray-700 border-b pb-2"><i class="fa-solid fa-users-gear mr-1 text-blue-500"></i> 職員マスタ・ステータス管理</h2>
-          <div id="admin-staff-list" class="space-y-2 text-xs max-h-[40vh] overflow-y-auto"></div>
-        </div>
-
-        <!-- 3. 必要人員・開所時間設定 -->
+        <!-- 2. 必要人員・開所時間設定（行事日・変形設定対応） -->
         <div class="bg-white p-4 rounded-xl shadow-sm space-y-3">
           <div class="flex justify-between items-center border-b pb-2">
-            <h2 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-clock-rotate-left mr-1 text-orange-500"></i> 必要人員・時間設定</h2>
+            <div>
+              <h2 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-clock-rotate-left mr-1 text-orange-500"></i> 必要人員設定（変形・行事対応）</h2>
+              <p class="text-[10px] text-gray-400">日付指定なし＝平日共通 / 日付指定あり＝特定行事日優先</p>
+            </div>
             <button onclick="addRequirementRow()" class="text-xs bg-gray-200 px-2 py-1 rounded font-bold">+ 行追加</button>
           </div>
           <div id="admin-req-list" class="space-y-2 text-xs"></div>
           <button onclick="saveRequirements()" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded font-bold text-xs shadow">
             必要人員設定を保存する
           </button>
+        </div>
+
+        <!-- 3. 職員ステータス管理 -->
+        <div class="bg-white p-4 rounded-xl shadow-sm space-y-3">
+          <h2 class="font-bold text-sm text-gray-700 border-b pb-2"><i class="fa-solid fa-users-gear mr-1 text-blue-500"></i> 職員マスタ管理</h2>
+          <div id="admin-staff-list" class="space-y-2 text-xs max-h-[30vh] overflow-y-auto"></div>
         </div>
 
       </div>
@@ -164,6 +174,7 @@
     let userId = "";
     let userRole = "一般";
     let currentMonthDays = [];
+    let currentAdminShifts = [];
 
     window.onload = function() {
       const today = new Date();
@@ -248,6 +259,7 @@
       document.getElementById('admin-target-month-label').innerText = yearMonth;
       generateMonthCalendar(yearMonth);
       loadConfirmedShifts();
+      if (userRole === '管理者') loadAdminShiftEdits();
     }
 
     function generateMonthCalendar(yearMonth) {
@@ -260,8 +272,8 @@
       const weekNames = ['日', '月', '火', '水', '木', '金', '土'];
 
       for (let day = 1; day <= daysInMonth; day++) {
-        const dateObj = new Date(year, month - 1, day);
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dateObj = new Date(year, month - 1, day);
         const dayOfWeek = weekNames[dateObj.getDay()];
         const isSunday = dateObj.getDay() === 0;
 
@@ -283,14 +295,13 @@
               <span>-</span>
               <input type="time" id="end-${dateStr}" value="17:30" class="p-1 border rounded bg-white text-[11px]">
             </div>
-            ${day > 1 ? `<button onclick="copyPreviousDay('${dateStr}',${day})" class="text-gray-400 hover:text-green-600 px-1" title="前日と同じ内容をコピー"><i class="fa-solid fa-copy"></i></button>` : ''}
+            ${day > 1 ? `<button onclick="copyPreviousDay('${dateStr}',${day})" class="text-gray-400 hover:text-green-600 px-1"><i class="fa-solid fa-copy"></i></button>` : ''}
           </div>
         `;
         container.appendChild(div);
       }
     }
 
-    // 前日同内容コピー機能
     function copyPreviousDay(currentDateStr, dayNumber) {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -306,7 +317,6 @@
       toggleTimeInput(currentDateStr);
     }
 
-    // 平日一括入力機能
     function applyBulkInput() {
       const type = document.getElementById('bulk-type').value;
       const start = document.getElementById('bulk-start').value;
@@ -314,7 +324,7 @@
 
       currentMonthDays.forEach(dateStr => {
         const dateObj = new Date(dateStr);
-        if (dateObj.getDay() !== 0) { // 日曜日以外に反映
+        if (dateObj.getDay() !== 0) {
           document.getElementById(`type-${dateStr}`).value = type;
           document.getElementById(`start-${dateStr}`).value = start;
           document.getElementById(`end-${dateStr}`).value = end;
@@ -366,8 +376,10 @@
         .then(res => {
           const list = document.getElementById('confirmed-list');
           list.innerHTML = '';
-          if (res.success && res.data.length > 0) {
-            res.data.forEach(s => {
+          const myShifts = res.data ? res.data.filter(s => String(s.userId) === String(userId)) : [];
+
+          if (res.success && myShifts.length > 0) {
+            myShifts.forEach(s => {
               const item = document.createElement('div');
               item.className = "flex justify-between p-2.5 bg-green-50 border border-green-200 rounded font-semibold text-green-900";
               item.innerHTML = `<span>${s.date}</span><span>${s.startTime} 〜 ${s.endTime}</span>`;
@@ -379,7 +391,6 @@
         });
     }
 
-    // 管理者データの読み込み
     function loadAdminData() {
       // 職員一覧取得
       postToGas({ action: 'getStaffList', userId: userId }).then(res => {
@@ -412,7 +423,7 @@
         }
       });
 
-      // 必要人員取得
+      // 必要人員取得（行事日対応）
       postToGas({ action: 'getRequirements', userId: userId }).then(res => {
         if (res.success) {
           const container = document.getElementById('admin-req-list');
@@ -420,10 +431,69 @@
           if (res.data.length === 0) {
             addRequirementRow();
           } else {
-            res.data.forEach(r => addRequirementRow(r['開始時間'], r['終了時間'], r['必要人数']));
+            res.data.forEach(r => addRequirementRow(r['対象日'], r['開始時間'], r['終了時間'], r['必要人数']));
           }
         }
       });
+
+      loadAdminShiftEdits();
+    }
+
+    // 管理者手動修正用一覧読み込み
+    function loadAdminShiftEdits() {
+      const yearMonth = document.getElementById('target-month').value;
+      postToGas({ action: 'getConfirmed', userId: userId, yearMonth: yearMonth }).then(res => {
+        if (res.success) {
+          currentAdminShifts = res.data || [];
+          const container = document.getElementById('admin-shift-edit-list');
+          container.innerHTML = '';
+
+          if (currentAdminShifts.length === 0) {
+            container.innerHTML = '<p class="text-gray-400 text-center py-2">シフトデータがありません。「自動作成」を押してください。</p>';
+            return;
+          }
+
+          currentAdminShifts.forEach((s, idx) => {
+            const div = document.createElement('div');
+            div.className = "p-2 border rounded bg-gray-50 flex items-center justify-between text-[11px]";
+            div.innerHTML = `
+              <div>
+                <span class="font-bold text-gray-700">${s.date}</span>
+                <span class="ml-1 text-gray-600">(${s.staffName})</span>
+              </div>
+              <div class="flex items-center space-x-1">
+                <input type="time" id="edit-start-${idx}" value="${s.startTime}" class="p-0.5 border rounded">
+                <span>-</span>
+                <input type="time" id="edit-end-${idx}" value="${s.endTime}" class="p-0.5 border rounded">
+                <button onclick="removeShiftRow(${idx})" class="text-red-500 font-bold px-1">×</button>
+              </div>
+            `;
+            container.appendChild(div);
+          });
+        }
+      });
+    }
+
+    function removeShiftRow(idx) {
+      currentAdminShifts.splice(idx, 1);
+      loadAdminShiftEdits();
+    }
+
+    function saveAdminShiftEdits() {
+      const yearMonth = document.getElementById('target-month').value;
+      currentAdminShifts.forEach((s, idx) => {
+        const startEl = document.getElementById(`edit-start-${idx}`);
+        const endEl = document.getElementById(`edit-end-${idx}`);
+        if (startEl && endEl) {
+          s.startTime = startEl.value;
+          s.endTime = endEl.value;
+        }
+      });
+
+      postToGas({ action: 'saveConfirmedShifts', userId: userId, yearMonth: yearMonth, shifts: currentAdminShifts })
+        .then(res => {
+          if (res.success) alert('手動修正したシフトを保存しました！');
+        });
     }
 
     function updateStaffStatus(targetUserId) {
@@ -436,15 +506,17 @@
         });
     }
 
-    function addRequirementRow(start = "08:30", end = "17:30", count = 2) {
+    // 必要人員行追加（特定日指定対応）
+    function addRequirementRow(date = "", start = "08:30", end = "17:30", count = 2) {
       const container = document.getElementById('admin-req-list');
       const div = document.createElement('div');
-      div.className = "flex items-center space-x-1 req-row";
+      div.className = "flex items-center space-x-1 req-row border-b pb-1";
       div.innerHTML = `
-        <input type="time" value="${start}" class="req-start p-1 border rounded text-[11px]">
+        <input type="date" value="${date}" class="req-date p-1 border rounded text-[10px] w-24" title="空欄で平日共通">
+        <input type="time" value="${start}" class="req-start p-1 border rounded text-[10px]">
         <span>-</span>
-        <input type="time" value="${end}" class="req-end p-1 border rounded text-[11px]">
-        <input type="number" value="${count}" min="1" class="req-count w-12 p-1 border rounded text-[11px] text-center">
+        <input type="time" value="${end}" class="req-end p-1 border rounded text-[10px]">
+        <input type="number" value="${count}" min="1" class="req-count w-10 p-1 border rounded text-[10px] text-center">
         <span>人</span>
         <button onclick="this.parentElement.remove()" class="text-red-500 font-bold px-1 text-xs">×</button>
       `;
@@ -456,6 +528,7 @@
       let requirements = [];
       rows.forEach(r => {
         requirements.push({
+          date: r.querySelector('.req-date').value,
           startTime: r.querySelector('.req-start').value,
           endTime: r.querySelector('.req-end').value,
           count: r.querySelector('.req-count').value
@@ -464,13 +537,13 @@
 
       postToGas({ action: 'saveRequirements', userId: userId, requirements: requirements })
         .then(res => {
-          if (res.success) alert('必要人員設定を保存しました！');
+          if (res.success) alert('必要人員設定（行事日指定含む）を保存しました！');
         });
     }
 
     function runAutoShiftGeneration() {
       const yearMonth = document.getElementById('target-month').value;
-      if (!confirm(`${yearMonth} 分の自動シフト生成を実行しますか？`)) return;
+      if (!confirm(`${yearMonth} 分の自動シフト生成を実行しますか？（既存の同月データは上書きされます）`)) return;
 
       document.getElementById('loading').classList.remove('hidden');
 
@@ -480,6 +553,9 @@
           if (res.success) {
             alert(`自動作成が完了しました！（${res.count}件のシフトを出力）`);
             loadConfirmedShifts();
+            loadAdminShiftEdits();
+          } else {
+            alert(`生成エラー: ${res.message}`);
           }
         });
     }
