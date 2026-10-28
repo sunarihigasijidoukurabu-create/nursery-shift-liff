@@ -71,109 +71,99 @@
       <div class="bg-white rounded-xl shadow-sm p-1 flex text-xs font-bold text-gray-600">
         <button id="btn-tab-sub" onclick="switchTab('sub')" class="flex-1 py-2 rounded-lg bg-green-500 text-white">希望提出</button>
         <button id="btn-tab-view" onclick="switchTab('view')" class="flex-1 py-2 rounded-lg hover:text-green-600">確定確認</button>
-        <button id="btn-tab-admin" onclick="switchTab('admin')" class="flex-1 py-2 rounded-lg hover:text-red-600 hidden text-red-600">★管理者機能</button>
+        <button id="btn-tab-admin" onclick="switchTab('admin')" class="flex-1 py-2 rounded-lg hover:text-red-600 hidden text-red-600">★管理者</button>
       </div>
 
       <!-- ① 1ヶ月希望シフト提出画面 -->
       <div id="sec-sub" class="bg-white p-4 rounded-xl shadow-sm space-y-4">
-        
         <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-xs space-y-2">
-          <div class="font-bold text-green-800 flex justify-between items-center">
-            <span><i class="fa-solid fa-bolt mr-1"></i> 希望シフトの一括入力</span>
-          </div>
+          <div class="font-bold text-green-800">希望シフトの一括入力</div>
           <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] text-gray-600">区分</label>
-              <select id="bulk-type" class="w-full p-1 border rounded bg-white text-[11px]">
-                <option value="出勤希望">出勤可能</option>
-                <option value="休み希望">休み希望</option>
-              </select>
-            </div>
+            <select id="bulk-type" class="p-1 border rounded bg-white text-[11px]">
+              <option value="出勤希望">出勤可能</option>
+              <option value="休み希望">休み希望</option>
+            </select>
             <div class="flex items-center space-x-1">
               <input type="time" id="bulk-start" value="08:30" class="w-full p-1 border rounded bg-white text-[11px]">
               <span>-</span>
               <input type="time" id="bulk-end" value="17:30" class="w-full p-1 border rounded bg-white text-[11px]">
             </div>
           </div>
-          <button onclick="applyBulkInput()" class="w-full bg-green-600 text-white py-1.5 rounded font-bold text-[11px] shadow hover:bg-green-700">
-            平日（月〜土）すべてに上記を一括反映
+          <button onclick="applyBulkInput()" class="w-full bg-green-600 text-white py-1.5 rounded font-bold text-[11px] shadow">
+            平日（月〜土）に一括反映
           </button>
         </div>
-
-        <div class="border-b pb-2 flex justify-between items-center">
-          <h2 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-calendar-days text-green-500 mr-1"></i> 希望勤務日・時間</h2>
-          <span class="text-[10px] text-gray-400">1ヶ月分一括設定</span>
-        </div>
-
         <div id="shift-input-list" class="space-y-2 text-xs max-h-[50vh] overflow-y-auto pr-1"></div>
-
         <button onclick="submitRequests()" class="w-full line-green line-green-hover text-white py-3 rounded-lg font-bold text-sm shadow">
-          <i class="fa-solid fa-paper-plane mr-1"></i> 1ヶ月分の希望を送信する
+          1ヶ月分の希望を送信する
         </button>
       </div>
 
-      <!-- ② 確定シフト確認画面 -->
+      <!-- ② 確定シフト確認画面（リスト ⇔ カレンダー切り替え可能） -->
       <div id="sec-view" class="bg-white p-4 rounded-xl shadow-sm space-y-3 hidden">
-        <h2 class="font-bold text-sm text-gray-700 border-b pb-2"><i class="fa-solid fa-calendar-check text-blue-500 mr-1"></i> あなたの確定シフト</h2>
-        <div id="confirmed-list" class="space-y-2 text-xs max-h-[60vh] overflow-y-auto"></div>
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-calendar-check text-blue-500 mr-1"></i> 確定シフト</h2>
+          <div class="space-x-1 text-xs font-bold">
+            <button id="btn-view-list" onclick="switchViewMode('list')" class="px-2.5 py-1 bg-blue-500 text-white rounded">リスト</button>
+            <button id="btn-view-cal" onclick="switchViewMode('calendar')" class="px-2.5 py-1 bg-gray-200 text-gray-700 rounded">カレンダー</button>
+          </div>
+        </div>
+
+        <!-- リスト表示モード -->
+        <div id="view-mode-list" class="space-y-2 text-xs max-h-[55vh] overflow-y-auto"></div>
+
+        <!-- カレンダー表示モード -->
+        <div id="view-mode-calendar" class="hidden space-y-3">
+          <div class="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-gray-500 bg-gray-50 p-1 rounded">
+            <span class="text-red-500">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+          </div>
+          <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-xs"></div>
+          <div id="calendar-day-detail" class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs hidden space-y-1"></div>
+        </div>
       </div>
 
       <!-- ③ 管理者専用画面 -->
       <div id="sec-admin" class="space-y-4 hidden">
-
-        <!-- 1. 自動作成・手動調整 -->
         <div class="bg-white p-4 rounded-xl shadow-sm space-y-3 border-2 border-red-200">
-          <h2 class="font-bold text-sm text-red-600 border-b pb-2"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> シフト生成・手動調整</h2>
-          <p class="text-xs text-gray-600">
-            選択月（<span id="admin-target-month-label" class="font-bold"></span>）の希望データから作成します。
-          </p>
+          <h2 class="font-bold text-sm text-red-600 border-b pb-2"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> シフト自動作成・手動調整</h2>
           <button onclick="runAutoShiftGeneration()" class="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-bold text-xs shadow">
             選択月のシフトを自動作成・再生成する
           </button>
-
           <div class="border-t pt-3 space-y-2">
-            <h3 class="font-bold text-xs text-gray-700">【確定シフトの手動微調整】</h3>
+            <h3 class="font-bold text-xs text-gray-700">【確定シフト微調整】</h3>
             <div id="admin-shift-edit-list" class="space-y-2 text-xs max-h-[35vh] overflow-y-auto pr-1"></div>
             <button onclick="saveAdminShiftEdits()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold text-xs shadow">
-              変更したシフト内容を保存する
+              変更を保存する
             </button>
           </div>
         </div>
 
-        <!-- 2. 必要人員・開所時間設定（行事日・変形設定対応） -->
         <div class="bg-white p-4 rounded-xl shadow-sm space-y-3">
           <div class="flex justify-between items-center border-b pb-2">
-            <div>
-              <h2 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-clock-rotate-left mr-1 text-orange-500"></i> 必要人員設定（変形・行事対応）</h2>
-              <p class="text-[10px] text-gray-400">日付指定なし＝平日共通 / 日付指定あり＝特定行事日優先</p>
-            </div>
+            <h2 class="font-bold text-sm text-gray-700">必要人員設定（変形・行事対応）</h2>
             <button onclick="addRequirementRow()" class="text-xs bg-gray-200 px-2 py-1 rounded font-bold">+ 行追加</button>
           </div>
           <div id="admin-req-list" class="space-y-2 text-xs"></div>
-          <button onclick="saveRequirements()" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded font-bold text-xs shadow">
-            必要人員設定を保存する
-          </button>
+          <button onclick="saveRequirements()" class="w-full bg-orange-500 text-white py-2 rounded font-bold text-xs shadow">保存する</button>
         </div>
 
-        <!-- 3. 職員ステータス管理 -->
         <div class="bg-white p-4 rounded-xl shadow-sm space-y-3">
-          <h2 class="font-bold text-sm text-gray-700 border-b pb-2"><i class="fa-solid fa-users-gear mr-1 text-blue-500"></i> 職員マスタ管理</h2>
+          <h2 class="font-bold text-sm text-gray-700 border-b pb-2">職員マスタ管理</h2>
           <div id="admin-staff-list" class="space-y-2 text-xs max-h-[30vh] overflow-y-auto"></div>
         </div>
-
       </div>
 
     </div>
-
   </main>
 
   <script>
-    const LIFF_ID = "2012121277-rbcBxEHH";
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyPcR-HFwaArgWAZi_ABCv3xqnQ9N3fxySIVX8CoRXtagttyT1YGPZhHgX6uxx--dN5Mw/exec"; 
+    const LIFF_ID = "201212177-rbcBxEHH";
+    const GAS_API_URL = "ここに取得したAPIのURLを貼り付け"; 
     
     let userId = "";
     let userRole = "一般";
     let currentMonthDays = [];
+    let currentConfirmedShifts = [];
     let currentAdminShifts = [];
 
     window.onload = function() {
@@ -183,9 +173,8 @@
 
       liff.init({ liffId: LIFF_ID })
         .then(() => {
-          if (!liff.isLoggedIn()) {
-            liff.login();
-          } else {
+          if (!liff.isLoggedIn()) liff.login();
+          else {
             liff.getProfile().then(profile => {
               userId = profile.userId;
               checkUserProfile();
@@ -204,54 +193,35 @@
     }
 
     function checkUserProfile() {
-      document.getElementById('loading-msg').innerText = "ユーザー情報確認中...";
-      
-      postToGas({ action: 'checkProfile', userId: userId })
-        .then(res => {
-          document.getElementById('loading').classList.add('hidden');
-          if (res.isBlocked) {
-            alert(res.message);
-            document.getElementById('loading-msg').innerText = "利用停止中";
-            return;
+      postToGas({ action: 'checkProfile', userId: userId }).then(res => {
+        document.getElementById('loading').classList.add('hidden');
+        if (res.isBlocked) { alert(res.message); return; }
+        if (res.isRegistered) {
+          userRole = res.data.role;
+          document.getElementById('user-name').innerText = res.data.name + " さん";
+          if (userRole === '管理者') {
+            document.getElementById('user-role').innerText = "【管理者】";
+            document.getElementById('user-role').classList.remove('hidden');
+            document.getElementById('btn-tab-admin').classList.remove('hidden');
+            loadAdminData();
           }
-
-          if (res.isRegistered) {
-            userRole = res.data.role;
-            document.getElementById('user-name').innerText = res.data.name + " さん";
-            
-            if (userRole === '管理者') {
-              const roleTag = document.getElementById('user-role');
-              roleTag.innerText = "【管理者】";
-              roleTag.classList.remove('hidden');
-              document.getElementById('btn-tab-admin').classList.remove('hidden');
-              loadAdminData();
-            }
-
-            document.getElementById('app-content').classList.remove('hidden');
-            onMonthChange();
-          } else {
-            document.getElementById('user-name').innerText = "新規ユーザー";
-            document.getElementById('sec-register').classList.remove('hidden');
-          }
-        });
+          document.getElementById('app-content').classList.remove('hidden');
+          onMonthChange();
+        } else {
+          document.getElementById('sec-register').classList.remove('hidden');
+        }
+      });
     }
 
     function createNewProfile() {
       const name = document.getElementById('input-staff-name').value.trim();
       const jobType = document.getElementById('select-job-type').value;
-
       if (!name) { alert("お名前を入力してください。"); return; }
-
       document.getElementById('loading').classList.remove('hidden');
       document.getElementById('sec-register').classList.add('hidden');
-
-      postToGas({ action: 'registerStaff', userId: userId, name: name, jobType: jobType })
-        .then(res => {
-          if (res.success) {
-            alert("登録が完了しました！");
-            checkUserProfile();
-          }
-        });
+      postToGas({ action: 'registerStaff', userId: userId, name: name, jobType: jobType }).then(res => {
+        if (res.success) checkUserProfile();
+      });
     }
 
     function onMonthChange() {
@@ -266,7 +236,6 @@
       const [year, month] = yearMonth.split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       currentMonthDays = [];
-
       const container = document.getElementById('shift-input-list');
       container.innerHTML = '';
       const weekNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -276,15 +245,12 @@
         const dateObj = new Date(year, month - 1, day);
         const dayOfWeek = weekNames[dateObj.getDay()];
         const isSunday = dateObj.getDay() === 0;
-
         currentMonthDays.push(dateStr);
 
         const div = document.createElement('div');
         div.className = `p-2 border rounded-lg flex items-center justify-between text-xs ${isSunday ? 'bg-red-50 border-red-200' : 'bg-gray-50'}`;
         div.innerHTML = `
-          <div class="font-bold ${isSunday ? 'text-red-600' : 'text-gray-700'} w-20">
-            ${month}/${day} (${dayOfWeek})
-          </div>
+          <div class="font-bold ${isSunday ? 'text-red-600' : 'text-gray-700'} w-20">${month}/${day} (${dayOfWeek})</div>
           <div class="flex items-center space-x-1 flex-1">
             <select id="type-${dateStr}" class="p-1 border rounded bg-white text-[11px]" onchange="toggleTimeInput('${dateStr}')">
               <option value="出勤希望">出勤可能</option>
@@ -295,7 +261,7 @@
               <span>-</span>
               <input type="time" id="end-${dateStr}" value="17:30" class="p-1 border rounded bg-white text-[11px]">
             </div>
-            ${day > 1 ? `<button onclick="copyPreviousDay('${dateStr}',${day})" class="text-gray-400 hover:text-green-600 px-1"><i class="fa-solid fa-copy"></i></button>` : ''}
+            ${day > 1 ? `<button onclick="copyPreviousDay('${dateStr}', ${day})" class="text-gray-400 hover:text-green-600 px-1"><i class="fa-solid fa-copy"></i></button>` : ''}
           </div>
         `;
         container.appendChild(div);
@@ -306,14 +272,9 @@
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
       const prevDateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNumber - 1).padStart(2, '0')}`;
-
-      const prevType = document.getElementById(`type-${prevDateStr}`).value;
-      const prevStart = document.getElementById(`start-${prevDateStr}`).value;
-      const prevEnd = document.getElementById(`end-${prevDateStr}`).value;
-
-      document.getElementById(`type-${currentDateStr}`).value = prevType;
-      document.getElementById(`start-${currentDateStr}`).value = prevStart;
-      document.getElementById(`end-${currentDateStr}`).value = prevEnd;
+      document.getElementById(`type-${currentDateStr}`).value = document.getElementById(`type-${prevDateStr}`).value;
+      document.getElementById(`start-${currentDateStr}`).value = document.getElementById(`start-${prevDateStr}`).value;
+      document.getElementById(`end-${currentDateStr}`).value = document.getElementById(`end-${prevDateStr}`).value;
       toggleTimeInput(currentDateStr);
     }
 
@@ -321,78 +282,143 @@
       const type = document.getElementById('bulk-type').value;
       const start = document.getElementById('bulk-start').value;
       const end = document.getElementById('bulk-end').value;
-
       currentMonthDays.forEach(dateStr => {
-        const dateObj = new Date(dateStr);
-        if (dateObj.getDay() !== 0) {
+        if (new Date(dateStr).getDay() !== 0) {
           document.getElementById(`type-${dateStr}`).value = type;
           document.getElementById(`start-${dateStr}`).value = start;
           document.getElementById(`end-${dateStr}`).value = end;
           toggleTimeInput(dateStr);
         }
       });
-      alert('日曜日以外の全日に一括適用しました！');
+      alert('一括反映しました！');
     }
 
     function toggleTimeInput(dateStr) {
       const type = document.getElementById(`type-${dateStr}`).value;
       const box = document.getElementById(`time-box-${dateStr}`);
-      if (type === '休み希望') {
-        box.classList.add('opacity-30', 'pointer-events-none');
-      } else {
-        box.classList.remove('opacity-30', 'pointer-events-none');
-      }
+      if (type === '休み希望') box.classList.add('opacity-30', 'pointer-events-none');
+      else box.classList.remove('opacity-30', 'pointer-events-none');
     }
 
     function submitRequests() {
       const yearMonth = document.getElementById('target-month').value;
       let requests = [];
-
       currentMonthDays.forEach(dateStr => {
         const type = document.getElementById(`type-${dateStr}`).value;
-        const startTime = document.getElementById(`start-${dateStr}`).value;
-        const endTime = document.getElementById(`end-${dateStr}`).value;
-
         requests.push({
           date: dateStr,
           type: type,
-          startTime: type === '出勤希望' ? startTime : '',
-          endTime: type === '出勤希望' ? endTime : ''
+          startTime: type === '出勤希望' ? document.getElementById(`start-${dateStr}`).value : '',
+          endTime: type === '出勤希望' ? document.getElementById(`end-${dateStr}`).value : ''
         });
       });
-
       document.getElementById('loading').classList.remove('hidden');
-
-      postToGas({ action: 'saveRequests', userId: userId, yearMonth: yearMonth, requests: requests })
-        .then(res => {
-          document.getElementById('loading').classList.add('hidden');
-          if (res.success) alert(`${yearMonth} 分の希望シフトを送信しました！`);
-        });
+      postToGas({ action: 'saveRequests', userId: userId, yearMonth: yearMonth, requests: requests }).then(res => {
+        document.getElementById('loading').classList.add('hidden');
+        if (res.success) alert('希望シフトを送信しました！');
+      });
     }
 
     function loadConfirmedShifts() {
       const yearMonth = document.getElementById('target-month').value;
-      postToGas({ action: 'getConfirmed', userId: userId, yearMonth: yearMonth })
-        .then(res => {
-          const list = document.getElementById('confirmed-list');
-          list.innerHTML = '';
-          const myShifts = res.data ? res.data.filter(s => String(s.userId) === String(userId)) : [];
+      postToGas({ action: 'getConfirmed', userId: userId, yearMonth: yearMonth }).then(res => {
+        if (res.success) {
+          currentConfirmedShifts = res.data || [];
+          renderListView();
+          renderCalendarView();
+        }
+      });
+    }
 
-          if (res.success && myShifts.length > 0) {
-            myShifts.forEach(s => {
-              const item = document.createElement('div');
-              item.className = "flex justify-between p-2.5 bg-green-50 border border-green-200 rounded font-semibold text-green-900";
-              item.innerHTML = `<span>${s.date}</span><span>${s.startTime} 〜 ${s.endTime}</span>`;
-              list.appendChild(item);
-            });
-          } else {
-            list.innerHTML = `<p class="text-center text-gray-400 py-6">${yearMonth} の確定シフトはまだありません。</p>`;
-          }
+    // 確定シフト：リスト表示（自分または全体のきれいな一覧）
+    function renderListView() {
+      const list = document.getElementById('view-mode-list');
+      list.innerHTML = '';
+      // 一般職員なら自分の分だけ、管理者なら全員分表示するなどの切り替えも可能。ここでは自分の分を綺麗に表示
+      const myShifts = currentConfirmedShifts.filter(s => String(s.userId) === String(userId));
+
+      if (myShifts.length > 0) {
+        myShifts.forEach(s => {
+          const item = document.createElement('div');
+          item.className = "flex justify-between p-2.5 bg-green-50 border border-green-200 rounded font-semibold text-green-900";
+          item.innerHTML = `<span><i class="fa-regular fa-calendar mr-1 text-green-600"></i>${s.date}</span><span>${s.startTime} 〜 ${s.endTime}</span>`;
+          list.appendChild(item);
         });
+      } else {
+        list.innerHTML = `<p class="text-center text-gray-400 py-6">確定シフトはありません。</p>`;
+      }
+    }
+
+    // 確定シフト：カレンダー表示
+    function renderCalendarView() {
+      const yearMonth = document.getElementById('target-month').value;
+      const [year, month] = yearMonth.split('-').map(Number);
+      const firstDayIndex = new Date(year, month - 1, 1).getDay();
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      const grid = document.getElementById('calendar-grid');
+      grid.innerHTML = '';
+
+      // 空白セル
+      for (let i = 0; i < firstDayIndex; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = "h-12 bg-gray-50 rounded opacity-30";
+        grid.appendChild(emptyCell);
+      }
+
+      // 日付セル
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayShifts = currentConfirmedShifts.filter(s => s.date === dateStr);
+        const isSun = new Date(year, month - 1, day).getDay() === 0;
+
+        const cell = document.createElement('div');
+        cell.className = `h-14 p-1 border rounded flex flex-col justify-between cursor-pointer ${dayShifts.length > 0 ? 'bg-green-50 border-green-300 font-bold' : 'bg-white'}`;
+        cell.onclick = () => showDayDetail(dateStr, dayShifts);
+        cell.innerHTML = `
+          <div class="text-[10px] ${isSun ? 'text-red-500' : 'text-gray-700'}">${day}</div>
+          <div class="text-[9px] text-center bg-green-600 text-white rounded px-0.5">${dayShifts.length}人出勤</div>
+        `;
+        grid.appendChild(cell);
+      }
+    }
+
+    // カレンダーの日付タップでその日の出勤者を表示
+    function showDayDetail(dateStr, shifts) {
+      const detailBox = document.getElementById('calendar-day-detail');
+      detailBox.classList.remove('hidden');
+      if (shifts.length === 0) {
+        detailBox.innerHTML = `<div class="font-bold text-gray-700">${dateStr} の出勤予定者</div><p class="text-gray-400">出勤予定者はいません。</p>`;
+        return;
+      }
+      let html = `<div class="font-bold text-blue-900 border-b pb-1 mb-1">${dateStr} の出勤予定（${shifts.length}人）</div><div class="space-y-1">`;
+      shifts.forEach(s => {
+        html += `<div class="flex justify-between"><span>${s.staffName}</span><span class="font-semibold">${s.startTime}〜${s.endTime}</span></div>`;
+      });
+      html += `</div>`;
+      detailBox.innerHTML = html;
+    }
+
+    function switchViewMode(mode) {
+      const listEl = document.getElementById('view-mode-list');
+      const calEl = document.getElementById('view-mode-calendar');
+      const btnList = document.getElementById('btn-view-list');
+      const btnCal = document.getElementById('btn-view-cal');
+
+      if (mode === 'list') {
+        listEl.classList.remove('hidden');
+        calEl.classList.add('hidden');
+        btnList.className = "px-2.5 py-1 bg-blue-500 text-white rounded";
+        btnCal.className = "px-2.5 py-1 bg-gray-200 text-gray-700 rounded";
+      } else {
+        listEl.classList.add('hidden');
+        calEl.classList.remove('hidden');
+        btnCal.className = "px-2.5 py-1 bg-blue-500 text-white rounded";
+        btnList.className = "px-2.5 py-1 bg-gray-200 text-gray-700 rounded";
+      }
     }
 
     function loadAdminData() {
-      // 職員一覧取得
       postToGas({ action: 'getStaffList', userId: userId }).then(res => {
         if (res.success) {
           const container = document.getElementById('admin-staff-list');
@@ -401,10 +427,7 @@
             const div = document.createElement('div');
             div.className = "p-2 border rounded bg-gray-50 flex items-center justify-between text-xs";
             div.innerHTML = `
-              <div>
-                <div class="font-bold text-gray-800">${s['職員氏名']}</div>
-                <div class="text-[10px] text-gray-400">${s['権限']}</div>
-              </div>
+              <div><div class="font-bold text-gray-800">${s['職員氏名']}</div><div class="text-[10px] text-gray-400">${s['権限']}</div></div>
               <div class="flex items-center space-x-1">
                 <select id="staff-job-${s['LINEユーザーID']}" class="p-1 border rounded bg-white text-[10px]">
                   <option value="パート" ${s['雇用区分'] === 'パート' ? 'selected' : ''}>パート</option>
@@ -416,30 +439,23 @@
                   <option value="退職" ${s['ステータス'] === '退職' ? 'selected' : ''}>退職</option>
                 </select>
                 <button onclick="updateStaffStatus('${s['LINEユーザーID']}')" class="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold">更新</button>
-              </div>
-            `;
+              </div>`;
             container.appendChild(div);
           });
         }
       });
 
-      // 必要人員取得（行事日対応）
       postToGas({ action: 'getRequirements', userId: userId }).then(res => {
         if (res.success) {
           const container = document.getElementById('admin-req-list');
           container.innerHTML = '';
-          if (res.data.length === 0) {
-            addRequirementRow();
-          } else {
-            res.data.forEach(r => addRequirementRow(r['対象日'], r['開始時間'], r['終了時間'], r['必要人数']));
-          }
+          if (res.data.length === 0) addRequirementRow();
+          else res.data.forEach(r => addRequirementRow(r['対象日'], r['開始時間'], r['終了時間'], r['必要人数']));
         }
       });
-
       loadAdminShiftEdits();
     }
 
-    // 管理者手動修正用一覧読み込み
     function loadAdminShiftEdits() {
       const yearMonth = document.getElementById('target-month').value;
       postToGas({ action: 'getConfirmed', userId: userId, yearMonth: yearMonth }).then(res => {
@@ -447,36 +463,25 @@
           currentAdminShifts = res.data || [];
           const container = document.getElementById('admin-shift-edit-list');
           container.innerHTML = '';
-
           if (currentAdminShifts.length === 0) {
-            container.innerHTML = '<p class="text-gray-400 text-center py-2">シフトデータがありません。「自動作成」を押してください。</p>';
+            container.innerHTML = '<p class="text-gray-400 text-center py-2">シフトデータがありません。</p>';
             return;
           }
-
           currentAdminShifts.forEach((s, idx) => {
             const div = document.createElement('div');
             div.className = "p-2 border rounded bg-gray-50 flex items-center justify-between text-[11px]";
             div.innerHTML = `
-              <div>
-                <span class="font-bold text-gray-700">${s.date}</span>
-                <span class="ml-1 text-gray-600">(${s.staffName})</span>
-              </div>
+              <div><span class="font-bold text-gray-700">${s.date}</span><span class="ml-1 text-gray-600">(${s.staffName})</span></div>
               <div class="flex items-center space-x-1">
                 <input type="time" id="edit-start-${idx}" value="${s.startTime}" class="p-0.5 border rounded">
                 <span>-</span>
                 <input type="time" id="edit-end-${idx}" value="${s.endTime}" class="p-0.5 border rounded">
-                <button onclick="removeShiftRow(${idx})" class="text-red-500 font-bold px-1">×</button>
-              </div>
-            `;
+                <button onclick="currentAdminShifts.splice(${idx},1);loadAdminShiftEdits()" class="text-red-500 font-bold px-1">×</button>
+              </div>`;
             container.appendChild(div);
           });
         }
       });
-    }
-
-    function removeShiftRow(idx) {
-      currentAdminShifts.splice(idx, 1);
-      loadAdminShiftEdits();
     }
 
     function saveAdminShiftEdits() {
@@ -484,42 +489,33 @@
       currentAdminShifts.forEach((s, idx) => {
         const startEl = document.getElementById(`edit-start-${idx}`);
         const endEl = document.getElementById(`edit-end-${idx}`);
-        if (startEl && endEl) {
-          s.startTime = startEl.value;
-          s.endTime = endEl.value;
-        }
+        if (startEl && endEl) { s.startTime = startEl.value; s.endTime = endEl.value; }
       });
-
-      postToGas({ action: 'saveConfirmedShifts', userId: userId, yearMonth: yearMonth, shifts: currentAdminShifts })
-        .then(res => {
-          if (res.success) alert('手動修正したシフトを保存しました！');
-        });
+      postToGas({ action: 'saveConfirmedShifts', userId: userId, yearMonth: yearMonth, shifts: currentAdminShifts }).then(res => {
+        if (res.success) { alert('保存しました！'); loadConfirmedShifts(); }
+      });
     }
 
     function updateStaffStatus(targetUserId) {
       const status = document.getElementById(`staff-status-${targetUserId}`).value;
       const jobType = document.getElementById(`staff-job-${targetUserId}`).value;
-
-      postToGas({ action: 'updateStaffStatus', userId: userId, targetUserId: targetUserId, status: status, jobType: jobType })
-        .then(res => {
-          if (res.success) alert('職員情報を更新しました。');
-        });
+      postToGas({ action: 'updateStaffStatus', userId: userId, targetUserId: targetUserId, status: status, jobType: jobType }).then(res => {
+        if (res.success) alert('更新しました。');
+      });
     }
 
-    // 必要人員行追加（特定日指定対応）
     function addRequirementRow(date = "", start = "08:30", end = "17:30", count = 2) {
       const container = document.getElementById('admin-req-list');
       const div = document.createElement('div');
       div.className = "flex items-center space-x-1 req-row border-b pb-1";
       div.innerHTML = `
-        <input type="date" value="${date}" class="req-date p-1 border rounded text-[10px] w-24" title="空欄で平日共通">
+        <input type="date" value="${date}" class="req-date p-1 border rounded text-[10px] w-24">
         <input type="time" value="${start}" class="req-start p-1 border rounded text-[10px]">
         <span>-</span>
         <input type="time" value="${end}" class="req-end p-1 border rounded text-[10px]">
         <input type="number" value="${count}" min="1" class="req-count w-10 p-1 border rounded text-[10px] text-center">
         <span>人</span>
-        <button onclick="this.parentElement.remove()" class="text-red-500 font-bold px-1 text-xs">×</button>
-      `;
+        <button onclick="this.parentElement.remove()" class="text-red-500 font-bold px-1 text-xs">×</button>`;
       container.appendChild(div);
     }
 
@@ -534,37 +530,29 @@
           count: r.querySelector('.req-count').value
         });
       });
-
-      postToGas({ action: 'saveRequirements', userId: userId, requirements: requirements })
-        .then(res => {
-          if (res.success) alert('必要人員設定（行事日指定含む）を保存しました！');
-        });
+      postToGas({ action: 'saveRequirements', userId: userId, requirements: requirements }).then(res => {
+        if (res.success) alert('人員設定を保存しました！');
+      });
     }
 
     function runAutoShiftGeneration() {
       const yearMonth = document.getElementById('target-month').value;
-      if (!confirm(`${yearMonth} 分の自動シフト生成を実行しますか？（既存の同月データは上書きされます）`)) return;
-
+      if (!confirm(`${yearMonth} 分の自動シフトを生成しますか？`)) return;
       document.getElementById('loading').classList.remove('hidden');
-
-      postToGas({ action: 'generateAutoShift', userId: userId, yearMonth: yearMonth })
-        .then(res => {
-          document.getElementById('loading').classList.add('hidden');
-          if (res.success) {
-            alert(`自動作成が完了しました！（${res.count}件のシフトを出力）`);
-            loadConfirmedShifts();
-            loadAdminShiftEdits();
-          } else {
-            alert(`生成エラー: ${res.message}`);
-          }
-        });
+      postToGas({ action: 'generateAutoShift', userId: userId, yearMonth: yearMonth }).then(res => {
+        document.getElementById('loading').classList.add('hidden');
+        if (res.success) {
+          alert(`自動作成完了（${res.count}件）`);
+          loadConfirmedShifts();
+          loadAdminShiftEdits();
+        } else alert(`エラー: ${res.message}`);
+      });
     }
 
     function switchTab(tab) {
       document.getElementById('sec-sub').classList.add('hidden');
       document.getElementById('sec-view').classList.add('hidden');
       document.getElementById('sec-admin').classList.add('hidden');
-
       document.getElementById('btn-tab-sub').className = "flex-1 py-2 rounded-lg hover:text-green-600";
       document.getElementById('btn-tab-view').className = "flex-1 py-2 rounded-lg hover:text-green-600";
       document.getElementById('btn-tab-admin').className = "flex-1 py-2 rounded-lg text-red-600 hover:text-red-700";
