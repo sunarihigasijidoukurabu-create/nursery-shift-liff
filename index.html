@@ -427,7 +427,10 @@
             const div = document.createElement('div');
             div.className = "p-2 border rounded bg-gray-50 flex items-center justify-between text-xs";
             div.innerHTML = `
-              <div><div class="font-bold text-gray-800">${s['職員氏名']}</div><div class="text-[10px] text-gray-400">${s['権限']}</div></div>
+              <div>
+                <div class="font-bold text-gray-800">${s['職員氏名']}</div>
+                <div class="text-[10px] text-gray-400">1日上限: ${s['1日上限時間'] || '-'}時間 / ${s['権限']}</div>
+              </div>
               <div class="flex items-center space-x-1">
                 <select id="staff-job-${s['LINEユーザーID']}" class="p-1 border rounded bg-white text-[10px]">
                   <option value="パート" ${s['雇用区分'] === 'パート' ? 'selected' : ''}>パート</option>
