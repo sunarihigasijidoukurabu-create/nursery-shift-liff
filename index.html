@@ -30,7 +30,7 @@
 
   <main class="max-w-md mx-auto p-3 space-y-3">
 
-    <!-- ローディング表示 -->
+    <!-- ローディング -->
     <div id="loading" class="text-center py-12 space-y-3">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-500 border-t-transparent"></div>
       <p id="loading-msg" class="text-xs text-slate-500 font-bold">データを読み込み中...</p>
@@ -61,7 +61,7 @@
       </div>
     </div>
 
-    <!-- アプリメインコンテンツ -->
+    <!-- アプリメイン画面 -->
     <div id="app-content" class="space-y-3 hidden">
 
       <!-- 年月選択バー -->
@@ -81,11 +81,10 @@
 
       <!-- ① 希望シフト提出画面 -->
       <div id="sec-sub" class="space-y-3">
-        <!-- 一括入力カード -->
         <div class="bg-white border border-green-200 rounded-2xl p-3.5 shadow-sm space-y-2.5">
           <div class="text-xs font-bold text-green-800 flex items-center justify-between">
             <span><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>平日一括反映ツール</span>
-            <span class="text-[10px] text-green-600 font-normal">月〜土に適用</span>
+            <span class="text-[10px] text-green-600 font-normal">月〜金に適用</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <select id="bulk-type" class="p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold">
@@ -99,11 +98,10 @@
             </div>
           </div>
           <button onclick="applyBulkInput()" class="w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg font-bold text-xs shadow-sm">
-            平日一括入力
+            平日（月〜金）に一括反映
           </button>
         </div>
 
-        <!-- 日別希望リスト -->
         <div id="shift-input-list" class="space-y-2 text-xs max-h-[52vh] overflow-y-auto pr-0.5"></div>
 
         <button onclick="submitRequests()" class="w-full line-green line-green-hover text-white py-3 rounded-xl font-bold text-sm shadow">
@@ -135,7 +133,7 @@
       <!-- ③ 管理者画面 -->
       <div id="sec-admin" class="space-y-4 hidden">
 
-        <!-- シフト自動生成・診断レポートカード -->
+        <!-- シフト自動生成 -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-red-200 space-y-3">
           <div class="flex justify-between items-center">
             <h2 class="font-bold text-xs text-red-600 flex items-center">
@@ -146,17 +144,16 @@
             </button>
           </div>
 
-          <!-- 不足診断レポート表示エリア -->
           <div id="admin-shortage-alert-box" class="hidden border border-amber-300 bg-amber-50 rounded-xl p-3 space-y-2 text-xs">
             <div class="font-bold text-amber-800 flex items-center">
               <i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-600"></i>不足箇所の診断レポート
             </div>
-            <p class="text-[11px] text-amber-700">条件を満たせない時間帯を特定しました。仮シフトとして保存済みですので、下部で手修正してください。</p>
+            <p class="text-[11px] text-amber-700">条件を満たせない時間帯です。仮シフトとして保存済みですので、下部で手修正してください。</p>
             <div id="shortage-alert-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div>
           </div>
         </div>
 
-        <!-- 確定シフト手動調整（日別アコーディオン） -->
+        <!-- 確定シフト手動調整 -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="flex justify-between items-center border-b pb-2">
             <div>
@@ -170,12 +167,12 @@
           <div id="admin-daily-shift-container" class="space-y-2 text-xs max-h-[50vh] overflow-y-auto pr-1"></div>
         </div>
 
-        <!-- 必要人員設定 -->
+        <!-- 必要人員設定（カレンダー選択対応） -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="flex justify-between items-center border-b pb-2">
             <div>
               <h2 class="font-bold text-xs text-slate-800">必要人員・時間帯設定</h2>
-              <p class="text-[10px] text-slate-400">行事・特定日の人員設定もここで追加可能</p>
+              <p class="text-[10px] text-slate-400">平日共通（月〜金）または日付指定で設定</p>
             </div>
             <button onclick="addRequirementRow()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded font-bold border">+ 追加</button>
           </div>
@@ -183,13 +180,13 @@
           <button onclick="saveRequirements()" class="w-full bg-slate-700 hover:bg-slate-800 text-white py-2 rounded-xl font-bold text-xs shadow-sm">設定を保存</button>
         </div>
 
-        <!-- 職員マスタ管理（区分・ステータス・上限切替） -->
+        <!-- 職員マスタ管理（上限日数・時間の個別編集対応） -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="border-b pb-2">
             <h2 class="font-bold text-xs text-slate-800">職員マスタ管理</h2>
-            <p class="text-[10px] text-slate-400">正規/パート区分・休退職のステータス切替</p>
+            <p class="text-[10px] text-slate-400">区分・ステータス・週上限日数や時間の個別設定</p>
           </div>
-          <div id="admin-staff-list" class="space-y-2.5 text-xs max-h-[40vh] overflow-y-auto pr-1"></div>
+          <div id="admin-staff-list" class="space-y-3 text-xs max-h-[45vh] overflow-y-auto pr-1"></div>
         </div>
 
       </div>
@@ -275,7 +272,6 @@
       if (userRole === '管理者') loadAdminData();
     }
 
-    // ① 希望提出用カレンダー生成（既存希望の再読み込み対応）
     function generateMonthCalendar(yearMonth) {
       const [year, month] = yearMonth.split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
@@ -284,7 +280,6 @@
       container.innerHTML = '<div class="text-center py-4 text-slate-400">カレンダー生成中...</div>';
       const weekNames = ['日', '月', '火', '水', '木', '金', '土'];
 
-      // 過去に入力した希望を取得
       postToGas({ action: 'getRequests', userId: userId, yearMonth: yearMonth }).then(res => {
         container.innerHTML = '';
         const savedRequests = (res && res.success) ? res.data : [];
@@ -297,7 +292,6 @@
           const isSaturday = dateObj.getDay() === 6;
           currentMonthDays.push(dateStr);
 
-          // 保存済みデータの確認
           const saved = savedRequests.find(r => r.date === dateStr);
           let defaultType = saved ? saved.type : (isSunday ? '休み希望' : '出勤希望');
           let defaultStart = saved && saved.startTime ? saved.startTime : '08:30';
@@ -337,19 +331,21 @@
       toggleTimeInput(currentDateStr);
     }
 
+    // 月〜金（平日のみ）に一括反映
     function applyBulkInput() {
       const type = document.getElementById('bulk-type').value;
       const start = document.getElementById('bulk-start').value;
       const end = document.getElementById('bulk-end').value;
       currentMonthDays.forEach(dateStr => {
-        if (new Date(dateStr).getDay() !== 0) { // 日曜以外
+        const day = new Date(dateStr).getDay();
+        if (day >= 1 && day <= 5) { // 月〜金のみ
           document.getElementById(`type-${dateStr}`).value = type;
           document.getElementById(`start-${dateStr}`).value = start;
           document.getElementById(`end-${dateStr}`).value = end;
           toggleTimeInput(dateStr);
         }
       });
-      alert('月〜土曜日に一括反映しました。');
+      alert('月〜金曜日に一括反映しました。');
     }
 
     function toggleTimeInput(dateStr) {
@@ -378,7 +374,6 @@
       });
     }
 
-    // ② 確定シフト表示
     function loadConfirmedShifts() {
       const yearMonth = document.getElementById('target-month').value;
       postToGas({ action: 'getConfirmed', userId: userId, yearMonth: yearMonth }).then(res => {
@@ -482,7 +477,6 @@
 
     // ③ 管理者用機能
     function loadAdminData() {
-      // 職員マスタ取得
       postToGas({ action: 'getStaffList', userId: userId }).then(res => {
         if (res.success) {
           masterStaffList = res.data;
@@ -490,7 +484,6 @@
         }
       });
 
-      // 必要人員取得
       postToGas({ action: 'getRequirements', userId: userId }).then(res => {
         if (res.success) {
           masterRequirements = res.data;
@@ -499,37 +492,62 @@
       });
     }
 
+    // 職員マスタ管理：上限日数・時間の編集に対応
     function renderAdminStaffList() {
       const container = document.getElementById('admin-staff-list');
       container.innerHTML = '';
       masterStaffList.forEach(s => {
+        const uid = s['LINEユーザーID'];
         const div = document.createElement('div');
-        div.className = "p-2.5 border rounded-xl bg-white border-slate-200 space-y-1.5";
+        div.className = "p-3 border rounded-2xl bg-white border-slate-200 shadow-sm space-y-2.5";
         div.innerHTML = `
-          <div class="flex justify-between items-center">
-            <span class="font-bold text-slate-800 text-xs">${s['職員氏名']}</span>
-            <span class="text-[10px] text-slate-400 font-mono">${s['権限']}</span>
+          <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
+            <span class="font-bold text-slate-800 text-sm">${s['職員氏名']}</span>
+            <span class="text-[10px] text-slate-400 font-mono bg-slate-50 px-2 py-0.5 rounded">${s['権限']}</span>
           </div>
-          <div class="grid grid-cols-3 gap-1.5 pt-1">
+          <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="text-[9px] text-slate-400 block font-bold">区分</label>
-              <select id="staff-job-${s['LINEユーザーID']}" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
+              <label class="text-[10px] text-slate-500 font-bold block mb-0.5">雇用区分</label>
+              <select id="staff-job-${uid}" class="w-full p-1.5 border rounded-lg bg-slate-50 text-xs">
                 <option value="パート" ${s['雇用区分'] === 'パート' ? 'selected' : ''}>パート</option>
                 <option value="正社員" ${s['雇用区分'] === '正社員' ? 'selected' : ''}>正社員</option>
               </select>
             </div>
             <div>
-              <label class="text-[9px] text-slate-400 block font-bold">ステータス</label>
-              <select id="staff-status-${s['LINEユーザーID']}" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
+              <label class="text-[10px] text-slate-500 font-bold block mb-0.5">ステータス</label>
+              <select id="staff-status-${uid}" class="w-full p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold">
                 <option value="有効" ${s['ステータス'] === '有効' ? 'selected' : ''}>有効</option>
                 <option value="休職" ${s['ステータス'] === '休職' ? 'selected' : ''}>休職</option>
                 <option value="退職" ${s['ステータス'] === '退職' ? 'selected' : ''}>退職</option>
               </select>
             </div>
-            <div class="flex items-end">
-              <button onclick="updateStaff('${s['LINEユーザーID']}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded text-[10px] font-bold">保存</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
+            <div>
+              <label class="text-[9px] text-slate-500 font-bold block">週上限日数</label>
+              <div class="flex items-center space-x-1 mt-0.5">
+                <input type="number" id="staff-days-${uid}" value="${s['週上限日数'] ?? (s['雇用区分'] === '正社員' ? 5 : 3)}" min="1" max="7" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
+                <span class="text-[10px] text-slate-400">日</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-500 font-bold block">1日上限時間</label>
+              <div class="flex items-center space-x-1 mt-0.5">
+                <input type="number" id="staff-hours-${uid}" value="${s['1日上限時間'] ?? (s['雇用区分'] === '正社員' ? 8 : 6)}" min="1" max="24" step="0.5" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
+                <span class="text-[10px] text-slate-400">h</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-500 font-bold block">週上限時間</label>
+              <div class="flex items-center space-x-1 mt-0.5">
+                <input type="number" id="staff-whours-${uid}" value="${s['週上限時間'] ?? (s['雇用区分'] === '正社員' ? 40 : 20)}" min="1" max="168" step="0.5" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
+                <span class="text-[10px] text-slate-400">h</span>
+              </div>
             </div>
           </div>
+          <button onclick="updateStaff('${uid}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded-lg text-xs font-bold shadow-sm">
+            この職員の設定を保存
+          </button>
         `;
         container.appendChild(div);
       });
@@ -538,50 +556,118 @@
     function updateStaff(targetUserId) {
       const status = document.getElementById(`staff-status-${targetUserId}`).value;
       const jobType = document.getElementById(`staff-job-${targetUserId}`).value;
-      postToGas({ action: 'updateStaffStatus', userId: userId, targetUserId: targetUserId, status: status, jobType: jobType }).then(res => {
+      const maxDays = document.getElementById(`staff-days-${targetUserId}`).value;
+      const maxHours = document.getElementById(`staff-hours-${targetUserId}`).value;
+      const maxWeeklyHours = document.getElementById(`staff-whours-${targetUserId}`).value;
+
+      postToGas({
+        action: 'updateStaffStatus',
+        userId: userId,
+        targetUserId: targetUserId,
+        status: status,
+        jobType: jobType,
+        maxDays: maxDays,
+        maxHours: maxHours,
+        maxWeeklyHours: maxWeeklyHours
+      }).then(res => {
         if (res.success) alert('職員情報を更新しました。');
+        else alert('更新失敗: ' + res.message);
       });
     }
 
+    // 必要人員設定の描画
     function renderAdminRequirements() {
       const container = document.getElementById('admin-req-list');
       container.innerHTML = '';
-      if (masterRequirements.length === 0) addRequirementRow();
-      else masterRequirements.forEach(r => addRequirementRow(r['対象日'], r['開始時間'], r['終了時間'], r['必要人数']));
+      if (masterRequirements.length === 0) {
+        addRequirementRow();
+      } else {
+        masterRequirements.forEach(r => addRequirementRow(r['対象日'], r['開始時間'], r['終了時間'], r['必要人数']));
+      }
     }
 
-    function addRequirementRow(date = "", start = "08:30", end = "17:30", count = 2) {
+    // カレンダー選択対応の行追加
+    function addRequirementRow(date = "平日共通", start = "08:30", end = "17:30", count = 2) {
       const container = document.getElementById('admin-req-list');
+      const isCommon = !date || String(date).includes('平日共通');
+      const formattedDate = isCommon ? '' : String(date).substring(0, 10);
+      const rowId = 'req-' + Math.random().toString(36).substr(2, 9);
+
       const div = document.createElement('div');
-      div.className = "flex items-center space-x-1 req-row border-b border-slate-100 pb-1.5";
+      div.id = rowId;
+      div.className = "p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 req-row text-xs";
       div.innerHTML = `
-        <input type="text" value="${date || '平日共通'}" placeholder="平日共通 or 日付" class="req-date p-1 border rounded text-[10px] w-24">
-        <input type="time" value="${start}" class="req-start p-1 border rounded text-[10px]">
-        <span>-</span>
-        <input type="time" value="${end}" class="req-end p-1 border rounded text-[10px]">
-        <input type="number" value="${count}" min="1" class="req-count w-9 p-1 border rounded text-[10px] text-center">
-        <span class="text-[10px] text-slate-400">人</span>
-        <button onclick="this.parentElement.remove()" class="text-red-500 font-bold px-1 text-xs">×</button>`;
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-1.5">
+            <select class="req-type p-1 border rounded bg-white text-[11px] font-bold" onchange="toggleReqDateInput('${rowId}')">
+              <option value="平日共通" ${isCommon ? 'selected' : ''}>平日共通 (月〜金)</option>
+              <option value="特定日" ${!isCommon ? 'selected' : ''}>日付指定 (カレンダー)</option>
+            </select>
+            <input type="date" value="${formattedDate}" class="req-date p-1 border rounded bg-white text-[11px] font-mono ${isCommon ? 'hidden' : ''}">
+          </div>
+          <button onclick="this.closest('.req-row').remove()" class="text-red-500 hover:text-red-700 font-bold px-2 py-0.5 text-xs"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+        <div class="flex items-center space-x-2 justify-between">
+          <div class="flex items-center space-x-1">
+            <span class="text-slate-500 text-[10px]">時間:</span>
+            <input type="time" value="${start}" class="req-start p-1 border rounded bg-white text-[11px]">
+            <span>-</span>
+            <input type="time" value="${end}" class="req-end p-1 border rounded bg-white text-[11px]">
+          </div>
+          <div class="flex items-center space-x-1">
+            <span class="text-slate-500 text-[10px]">必要人数:</span>
+            <input type="number" value="${count}" min="1" max="20" class="req-count w-12 p-1 border rounded bg-white text-[11px] text-center font-bold">
+            <span class="text-slate-400 text-[10px]">名</span>
+          </div>
+        </div>
+      `;
       container.appendChild(div);
+    }
+
+    function toggleReqDateInput(rowId) {
+      const row = document.getElementById(rowId);
+      const type = row.querySelector('.req-type').value;
+      const dateInput = row.querySelector('.req-date');
+      if (type === '平日共通') {
+        dateInput.classList.add('hidden');
+      } else {
+        dateInput.classList.remove('hidden');
+        if (!dateInput.value) {
+          const ym = document.getElementById('target-month').value;
+          dateInput.value = `${ym}-01`;
+        }
+      }
     }
 
     function saveRequirements() {
       const rows = document.querySelectorAll('.req-row');
       let requirements = [];
+      let hasError = false;
+
       rows.forEach(r => {
+        const type = r.querySelector('.req-type').value;
+        const dateVal = r.querySelector('.req-date').value;
+        if (type === '特定日' && !dateVal) {
+          alert('日付指定が選択されている行で、日付が未入力です。カレンダーから日付を選択してください。');
+          hasError = true;
+          return;
+        }
+
         requirements.push({
-          date: r.querySelector('.req-date').value,
+          date: type === '平日共通' ? '平日共通' : dateVal,
           startTime: r.querySelector('.req-start').value,
           endTime: r.querySelector('.req-end').value,
           count: r.querySelector('.req-count').value
         });
       });
+
+      if (hasError) return;
+
       postToGas({ action: 'saveRequirements', userId: userId, requirements: requirements }).then(res => {
         if (res.success) alert('必要人員設定を保存しました。');
       });
     }
 
-    // 自動生成実行と原因診断レポート表示
     function runAutoShiftGeneration() {
       const yearMonth = document.getElementById('target-month').value;
       if (!confirm(`${yearMonth} のシフトを自動作成しますか？\n（同月の確定シフトは上書きされます）`)) return;
@@ -620,7 +706,6 @@
       });
     }
 
-    // 管理者用：日別アコーディオン手修正UI
     function renderAdminDailyEdits() {
       const container = document.getElementById('admin-daily-shift-container');
       container.innerHTML = '';
@@ -629,7 +714,6 @@
         return;
       }
 
-      // 日付ごとにグループ化
       const grouped = {};
       currentConfirmedShifts.forEach((s, idx) => {
         if (!grouped[s.date]) grouped[s.date] = [];
