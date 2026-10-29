@@ -308,7 +308,7 @@
                 <option value="出勤希望" ${defaultType === '出勤希望' ? 'selected' : ''}>出勤可能</option>
                 <option value="休み希望" ${defaultType === '休み希望' ? 'selected' : ''}>休み希望</option>
               </select>
-              // 日別カレンダーのHTML生成部
+              <!-- 日別カレンダーのHTML生成部 -->
 <div id="time-box-${dateStr}" class="flex items-center space-x-0.5 ${defaultType === '休み希望' ? 'opacity-30 pointer-events-none' : ''}">
   <input type="time" id="start-${dateStr}" value="${defaultStart}" placeholder="終日" class="p-1 border rounded bg-slate-50 text-[11px]">
   <span class="text-slate-400">-</span>
