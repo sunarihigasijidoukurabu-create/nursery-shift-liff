@@ -308,11 +308,15 @@
                 <option value="出勤希望" ${defaultType === '出勤希望' ? 'selected' : ''}>出勤可能</option>
                 <option value="休み希望" ${defaultType === '休み希望' ? 'selected' : ''}>休み希望</option>
               </select>
-              <div id="time-box-${dateStr}" class="flex items-center space-x-0.5 ${defaultType === '休み希望' ? 'opacity-30 pointer-events-none' : ''}">
-                <input type="time" id="start-${dateStr}" value="${defaultStart}" class="p-1 border rounded bg-slate-50 text-[11px]">
-                <span class="text-slate-400">-</span>
-                <input type="time" id="end-${dateStr}" value="${defaultEnd}" class="p-1 border rounded bg-slate-50 text-[11px]">
-              </div>
+              // 日別カレンダーのHTML生成部
+<div id="time-box-${dateStr}" class="flex items-center space-x-0.5 ${defaultType === '休み希望' ? 'opacity-30 pointer-events-none' : ''}">
+  <input type="time" id="start-${dateStr}" value="${defaultStart}" placeholder="終日" class="p-1 border rounded bg-slate-50 text-[11px]">
+  <span class="text-slate-400">-</span>
+  <input type="time" id="end-${dateStr}" value="${defaultEnd}" placeholder="終日" class="p-1 border rounded bg-slate-50 text-[11px]">
+  <button type="button" onclick="document.getElementById('start-${dateStr}').value='';document.getElementById('end-${dateStr}').value='';" title="時間をクリアして終日可能にする" class="text-slate-400 hover:text-slate-600 px-1 text-[10px]">
+    終日
+  </button>
+</div>
               ${day > 1 ? `<button onclick="copyPreviousDay('${dateStr}', ${day})" title="前日の設定をコピー" class="text-slate-400 hover:text-green-600 px-1"><i class="fa-solid fa-copy"></i></button>` : ''}
             </div>
           `;
