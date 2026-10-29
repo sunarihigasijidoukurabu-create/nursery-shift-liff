@@ -153,18 +153,48 @@
           </div>
         </div>
 
-        <!-- 確定シフト手動調整 -->
+        <!-- 確定シフト手動調整（カレンダー型UI） -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="flex justify-between items-center border-b pb-2">
             <div>
-              <h2 class="font-bold text-xs text-slate-800">日別シフト手修正</h2>
-              <p class="text-[10px] text-slate-400">日付ごとの配置人数確認・時間の微修正</p>
+              <h2 class="font-bold text-xs text-slate-800">日別シフト手修正（カレンダー）</h2>
+              <p class="text-[10px] text-slate-400">日付をタップして職員の追加・変更・時間修正</p>
             </div>
             <button onclick="saveAdminShiftEdits()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm">
               変更を保存
             </button>
           </div>
-          <div id="admin-daily-shift-container" class="space-y-2 text-xs max-h-[50vh] overflow-y-auto pr-1"></div>
+
+          <!-- カレンダーグリッド -->
+          <div class="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-400 bg-slate-50 p-1.5 rounded-lg">
+            <span class="text-red-500">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="text-blue-500">土</span>
+          </div>
+          <div id="admin-cal-grid" class="grid grid-cols-7 gap-1 text-xs"></div>
+
+          <!-- 選択日のシフト編集パネル -->
+          <div id="admin-edit-panel" class="hidden p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+              <span id="admin-edit-date-label" class="font-bold text-xs text-slate-800">日付未選択</span>
+              <span id="admin-edit-count-badge" class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">0名</span>
+            </div>
+
+            <!-- 当日シフト一覧（変更・時間編集・削除） -->
+            <div id="admin-day-shift-list" class="space-y-2 text-xs"></div>
+
+            <!-- 職員追加フォーム -->
+            <div class="bg-white p-2.5 rounded-xl border border-dashed border-slate-300 space-y-2">
+              <span class="text-[10px] font-bold text-slate-500 block"><i class="fa-solid fa-user-plus mr-1 text-green-600"></i>職員を追加</span>
+              <div class="flex items-center space-x-1.5">
+                <select id="new-shift-staff" class="p-1 border rounded bg-slate-50 text-[11px] flex-1 font-semibold"></select>
+                <input type="time" id="new-shift-start" value="08:30" class="p-1 border rounded text-[11px] w-18">
+                <span>-</span>
+                <input type="time" id="new-shift-end" value="17:30" class="p-1 border rounded text-[11px] w-18">
+                <button onclick="addStaffToDay()" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded text-xs font-bold whitespace-nowrap">
+                  + 追加
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 必要人員設定（カレンダー選択対応） -->
@@ -180,7 +210,7 @@
           <button onclick="saveRequirements()" class="w-full bg-slate-700 hover:bg-slate-800 text-white py-2 rounded-xl font-bold text-xs shadow-sm">設定を保存</button>
         </div>
 
-        <!-- 職員マスタ管理（上限日数・時間の個別編集対応） -->
+        <!-- 職員マスタ管理 -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="border-b pb-2">
             <h2 class="font-bold text-xs text-slate-800">職員マスタ管理</h2>
@@ -204,6 +234,7 @@
     let currentConfirmedShifts = [];
     let masterStaffList = [];
     let masterRequirements = [];
+    let selectedAdminDate = "";
 
     window.onload = function() {
       const today = new Date();
@@ -267,6 +298,8 @@
 
     function onMonthChange() {
       const yearMonth = document.getElementById('target-month').value;
+      selectedAdminDate = "";
+      document.getElementById('admin-edit-panel').classList.add('hidden');
       generateMonthCalendar(yearMonth);
       loadConfirmedShifts();
       if (userRole === '管理者') loadAdminData();
@@ -294,8 +327,8 @@
 
           const saved = savedRequests.find(r => r.date === dateStr);
           let defaultType = saved ? saved.type : (isSunday ? '休み希望' : '出勤希望');
-          let defaultStart = saved && saved.startTime ? saved.startTime : '08:30';
-          let defaultEnd = saved && saved.endTime ? saved.endTime : '17:30';
+          let defaultStart = saved && saved.startTime ? saved.startTime : '';
+          let defaultEnd = saved && saved.endTime ? saved.endTime : '';
 
           const div = document.createElement('div');
           div.className = `p-2.5 border rounded-xl flex items-center justify-between text-xs transition-all ${isSunday ? 'bg-red-50/70 border-red-100' : isSaturday ? 'bg-blue-50/70 border-blue-100' : 'bg-white border-slate-200'}`;
@@ -303,26 +336,28 @@
             <div class="font-bold ${isSunday ? 'text-red-600' : isSaturday ? 'text-blue-600' : 'text-slate-700'} w-20">
               ${month}/${day} (${dayOfWeek})
             </div>
-            <div class="flex items-center space-x-1.5 flex-1 justify-end">
+            <div class="flex items-center space-x-1 flex-1 justify-end">
               <select id="type-${dateStr}" class="p-1 border rounded-lg bg-slate-50 text-[11px] font-semibold" onchange="toggleTimeInput('${dateStr}')">
                 <option value="出勤希望" ${defaultType === '出勤希望' ? 'selected' : ''}>出勤可能</option>
                 <option value="休み希望" ${defaultType === '休み希望' ? 'selected' : ''}>休み希望</option>
               </select>
-              <!-- 日別カレンダーのHTML生成部 -->
-<div id="time-box-${dateStr}" class="flex items-center space-x-0.5 ${defaultType === '休み希望' ? 'opacity-30 pointer-events-none' : ''}">
-  <input type="time" id="start-${dateStr}" value="${defaultStart}" placeholder="終日" class="p-1 border rounded bg-slate-50 text-[11px]">
-  <span class="text-slate-400">-</span>
-  <input type="time" id="end-${dateStr}" value="${defaultEnd}" placeholder="終日" class="p-1 border rounded bg-slate-50 text-[11px]">
-  <button type="button" onclick="document.getElementById('start-${dateStr}').value='';document.getElementById('end-${dateStr}').value='';" title="時間をクリアして終日可能にする" class="text-slate-400 hover:text-slate-600 px-1 text-[10px]">
-    終日
-  </button>
-</div>
-              ${day > 1 ? `<button onclick="copyPreviousDay('${dateStr}', ${day})" title="前日の設定をコピー" class="text-slate-400 hover:text-green-600 px-1"><i class="fa-solid fa-copy"></i></button>` : ''}
+              <div id="time-box-${dateStr}" class="flex items-center space-x-0.5 ${defaultType === '休み希望' ? 'opacity-30 pointer-events-none' : ''}">
+                <input type="time" id="start-${dateStr}" value="${defaultStart}" class="p-1 border rounded bg-slate-50 text-[11px]">
+                <span class="text-slate-400">-</span>
+                <input type="time" id="end-${dateStr}" value="${defaultEnd}" class="p-1 border rounded bg-slate-50 text-[11px]">
+                <button type="button" onclick="clearTimeInput('${dateStr}')" title="未入力にして終日希望にする" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1 py-0.5 rounded font-bold">終日</button>
+              </div>
+              ${day > 1 ? `<button onclick="copyPreviousDay('${dateStr}', ${day})" title="前日の設定をコピー" class="text-slate-400 hover:text-green-600 px-0.5"><i class="fa-solid fa-copy"></i></button>` : ''}
             </div>
           `;
           container.appendChild(div);
         }
       });
+    }
+
+    function clearTimeInput(dateStr) {
+      document.getElementById(`start-${dateStr}`).value = '';
+      document.getElementById(`end-${dateStr}`).value = '';
     }
 
     function copyPreviousDay(currentDateStr, dayNumber) {
@@ -335,14 +370,13 @@
       toggleTimeInput(currentDateStr);
     }
 
-    // 月〜金（平日のみ）に一括反映
     function applyBulkInput() {
       const type = document.getElementById('bulk-type').value;
       const start = document.getElementById('bulk-start').value;
       const end = document.getElementById('bulk-end').value;
       currentMonthDays.forEach(dateStr => {
         const day = new Date(dateStr).getDay();
-        if (day >= 1 && day <= 5) { // 月〜金のみ
+        if (day >= 1 && day <= 5) {
           document.getElementById(`type-${dateStr}`).value = type;
           document.getElementById(`start-${dateStr}`).value = start;
           document.getElementById(`end-${dateStr}`).value = end;
@@ -385,7 +419,7 @@
           currentConfirmedShifts = res.data || [];
           renderListView();
           renderCalendarView();
-          if (userRole === '管理者') renderAdminDailyEdits();
+          if (userRole === '管理者') renderAdminCalendarGrid();
         }
       });
     }
@@ -485,6 +519,7 @@
         if (res.success) {
           masterStaffList = res.data;
           renderAdminStaffList();
+          updateAdminStaffSelectOptions();
         }
       });
 
@@ -496,7 +531,195 @@
       });
     }
 
-    // 職員マスタ管理：上限日数・時間の編集に対応
+    // 管理者手修正用：カレンダーグリッドの描画
+    function renderAdminCalendarGrid() {
+      const yearMonth = document.getElementById('target-month').value;
+      const [year, month] = yearMonth.split('-').map(Number);
+      const firstDayIndex = new Date(year, month - 1, 1).getDay();
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      const grid = document.getElementById('admin-cal-grid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < firstDayIndex; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = "h-14 bg-slate-50/50 rounded-lg";
+        grid.appendChild(emptyCell);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayShifts = currentConfirmedShifts.filter(s => s.date === dateStr);
+        const dayOfWeek = new Date(year, month - 1, day).getDay();
+        const isSelected = selectedAdminDate === dateStr;
+
+        const cell = document.createElement('div');
+        cell.className = `h-14 p-1 border rounded-xl flex flex-col justify-between cursor-pointer transition-all ${
+          isSelected 
+            ? 'ring-2 ring-blue-500 bg-blue-50 font-bold border-blue-400' 
+            : dayShifts.length > 0 
+              ? 'bg-emerald-50 border-emerald-300 hover:bg-emerald-100' 
+              : 'bg-white border-slate-200 hover:bg-slate-50'
+        }`;
+        cell.onclick = () => selectAdminDate(dateStr);
+        cell.innerHTML = `
+          <div class="text-[10px] ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</div>
+          ${dayShifts.length > 0 ? `<div class="text-[9px] text-center bg-blue-600 text-white rounded-md py-0.5">${dayShifts.length}名</div>` : '<div class="text-[9px] text-slate-300 text-center">-</div>'}
+        `;
+        grid.appendChild(cell);
+      }
+
+      if (selectedAdminDate) {
+        renderAdminDayShiftList(selectedAdminDate);
+      }
+    }
+
+    // 管理者：日付選択
+    function selectAdminDate(dateStr) {
+      selectedAdminDate = dateStr;
+      renderAdminCalendarGrid();
+      renderAdminDayShiftList(dateStr);
+    }
+
+    // 管理者：選択日のシフト編集一覧の表示
+    function renderAdminDayShiftList(dateStr) {
+      const panel = document.getElementById('admin-edit-panel');
+      panel.classList.remove('hidden');
+      document.getElementById('admin-edit-date-label').innerText = `【${dateStr}】の配置シフト調整`;
+
+      const listContainer = document.getElementById('admin-day-shift-list');
+      listContainer.innerHTML = '';
+
+      // currentConfirmedShifts 全体から該当日のシフトを抽出（indexも保持）
+      const dayShiftsWithIdx = [];
+      currentConfirmedShifts.forEach((s, idx) => {
+        if (s.date === dateStr) {
+          dayShiftsWithIdx.push({ ...s, originalIndex: idx });
+        }
+      });
+
+      document.getElementById('admin-edit-count-badge').innerText = `${dayShiftsWithIdx.length}名 配置中`;
+
+      if (dayShiftsWithIdx.length === 0) {
+        listContainer.innerHTML = '<p class="text-slate-400 text-center py-2 text-xs">この日のシフト配置はありません。</p>';
+        return;
+      }
+
+      dayShiftsWithIdx.forEach(item => {
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200 shadow-sm";
+
+        // 職員選択用プルダウン
+        let staffOptionsHtml = '';
+        masterStaffList.forEach(st => {
+          const isSelected = String(st['LINEユーザーID']) === String(item.userId);
+          staffOptionsHtml += `<option value="${st['LINEユーザーID']}" ${isSelected ? 'selected' : ''}>${st['職員氏名']} (${st['雇用区分']})</option>`;
+        });
+
+        row.innerHTML = `
+          <div class="flex-1 mr-2">
+            <select onchange="changeStaffUser(${item.originalIndex}, this.value)" class="w-full p-1 border rounded bg-slate-50 text-[11px] font-bold">
+              ${staffOptionsHtml}
+            </select>
+          </div>
+          <div class="flex items-center space-x-1">
+            <input type="time" id="edit-start-${item.originalIndex}" value="${item.startTime}" onchange="updateShiftTime(${item.originalIndex})" class="p-1 border rounded text-[11px]">
+            <span>-</span>
+            <input type="time" id="edit-end-${item.originalIndex}" value="${item.endTime}" onchange="updateShiftTime(${item.originalIndex})" class="p-1 border rounded text-[11px]">
+            <button onclick="removeShiftRow(${item.originalIndex})" title="削除" class="text-red-500 hover:bg-red-50 font-bold p-1 rounded text-xs ml-1"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        `;
+        listContainer.appendChild(row);
+      });
+    }
+
+    // 職員選択セレクトボックスの選択肢更新
+    function updateAdminStaffSelectOptions() {
+      const select = document.getElementById('new-shift-staff');
+      if (!select) return;
+      select.innerHTML = '';
+      masterStaffList.filter(s => s['ステータス'] === '有効').forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s['LINEユーザーID'];
+        opt.innerText = `${s['職員氏名']} (${s['雇用区分']})`;
+        select.appendChild(opt);
+      });
+    }
+
+    // 選択日に職員を新規追加
+    function addStaffToDay() {
+      if (!selectedAdminDate) {
+        alert('カレンダーから日付を選択してください。');
+        return;
+      }
+      const staffSelect = document.getElementById('new-shift-staff');
+      const selectedUserId = staffSelect.value;
+      const staffObj = masterStaffList.find(s => String(s['LINEユーザーID']) === String(selectedUserId));
+      const startTime = document.getElementById('new-shift-start').value || '08:30';
+      const endTime = document.getElementById('new-shift-end').value || '17:30';
+
+      // 同日重複チェック
+      const alreadyAssigned = currentConfirmedShifts.some(s => s.date === selectedAdminDate && String(s.userId) === String(selectedUserId));
+      if (alreadyAssigned) {
+        if (!confirm('この職員はこの日に既にシフトが入っています。追加しますか？')) return;
+      }
+
+      currentConfirmedShifts.push({
+        date: selectedAdminDate,
+        userId: selectedUserId,
+        staffName: staffObj ? staffObj['職員氏名'] : '不明',
+        jobType: staffObj ? staffObj['雇用区分'] : 'パート',
+        startTime: startTime,
+        endTime: endTime
+      });
+
+      renderAdminCalendarGrid();
+    }
+
+    // 職員の変更（差し替え）
+    function changeStaffUser(originalIndex, newUserId) {
+      const staffObj = masterStaffList.find(s => String(s['LINEユーザーID']) === String(newUserId));
+      currentConfirmedShifts[originalIndex].userId = newUserId;
+      currentConfirmedShifts[originalIndex].staffName = staffObj ? staffObj['職員氏名'] : '不明';
+      currentConfirmedShifts[originalIndex].jobType = staffObj ? staffObj['雇用区分'] : 'パート';
+    }
+
+    // 時間変更
+    function updateShiftTime(originalIndex) {
+      const sVal = document.getElementById(`edit-start-${originalIndex}`).value;
+      const eVal = document.getElementById(`edit-end-${originalIndex}`).value;
+      currentConfirmedShifts[originalIndex].startTime = sVal;
+      currentConfirmedShifts[originalIndex].endTime = eVal;
+    }
+
+    // シフト行削除
+    function removeShiftRow(index) {
+      if (!confirm('このシフト割当を削除しますか？')) return;
+      currentConfirmedShifts.splice(index, 1);
+      renderAdminCalendarGrid();
+    }
+
+    // 編集内容の一括保存
+    function saveAdminShiftEdits() {
+      const yearMonth = document.getElementById('target-month').value;
+      document.getElementById('loading').classList.remove('hidden');
+      postToGas({
+        action: 'saveConfirmedShifts',
+        userId: userId,
+        yearMonth: yearMonth,
+        shifts: currentConfirmedShifts
+      }).then(res => {
+        document.getElementById('loading').classList.add('hidden');
+        if (res.success) {
+          alert('修正内容を保存しました！');
+          loadConfirmedShifts();
+        } else {
+          alert('保存失敗: ' + res.message);
+        }
+      });
+    }
+
+    // 職員マスタ管理
     function renderAdminStaffList() {
       const container = document.getElementById('admin-staff-list');
       container.innerHTML = '';
@@ -574,12 +797,16 @@
         maxHours: maxHours,
         maxWeeklyHours: maxWeeklyHours
       }).then(res => {
-        if (res.success) alert('職員情報を更新しました。');
-        else alert('更新失敗: ' + res.message);
+        if (res.success) {
+          alert('職員情報を更新しました。');
+          loadAdminData();
+        } else {
+          alert('更新失敗: ' + res.message);
+        }
       });
     }
 
-    // 必要人員設定の描画
+    // 必要人員設定
     function renderAdminRequirements() {
       const container = document.getElementById('admin-req-list');
       container.innerHTML = '';
@@ -590,7 +817,6 @@
       }
     }
 
-    // カレンダー選択対応の行追加
     function addRequirementRow(date = "平日共通", start = "08:30", end = "17:30", count = 2) {
       const container = document.getElementById('admin-req-list');
       const isCommon = !date || String(date).includes('平日共通');
@@ -672,6 +898,7 @@
       });
     }
 
+    // 自動生成実行
     function runAutoShiftGeneration() {
       const yearMonth = document.getElementById('target-month').value;
       if (!confirm(`${yearMonth} のシフトを自動作成しますか？\n（同月の確定シフトは上書きされます）`)) return;
@@ -706,77 +933,6 @@
           }
         } else {
           alert('エラー: ' + res.message);
-        }
-      });
-    }
-
-    function renderAdminDailyEdits() {
-      const container = document.getElementById('admin-daily-shift-container');
-      container.innerHTML = '';
-      if (currentConfirmedShifts.length === 0) {
-        container.innerHTML = '<p class="text-center text-slate-400 py-4">確定シフトが存在しません。</p>';
-        return;
-      }
-
-      const grouped = {};
-      currentConfirmedShifts.forEach((s, idx) => {
-        if (!grouped[s.date]) grouped[s.date] = [];
-        grouped[s.date].push({ ...s, originalIndex: idx });
-      });
-
-      Object.keys(grouped).sort().forEach(date => {
-        const shifts = grouped[date];
-        const card = document.createElement('div');
-        card.className = "p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2";
-        
-        let shiftRowsHtml = "";
-        shifts.forEach(s => {
-          shiftRowsHtml += `
-            <div class="flex items-center justify-between bg-white p-1.5 rounded-lg border border-slate-200">
-              <span class="font-bold text-slate-700 w-24 truncate">${s.staffName}</span>
-              <div class="flex items-center space-x-1">
-                <input type="time" id="edit-start-${s.originalIndex}" value="${s.startTime}" class="p-0.5 border rounded text-[10px]">
-                <span>-</span>
-                <input type="time" id="edit-end-${s.originalIndex}" value="${s.endTime}" class="p-0.5 border rounded text-[10px]">
-                <button onclick="removeShiftRow(${s.originalIndex})" class="text-red-500 font-bold px-1.5 hover:bg-red-50 rounded">×</button>
-              </div>
-            </div>
-          `;
-        });
-
-        card.innerHTML = `
-          <div class="flex justify-between items-center font-bold text-slate-700 border-b border-slate-200 pb-1">
-            <span>${date}</span>
-            <span class="text-[11px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">${shifts.length}名 配置中</span>
-          </div>
-          <div class="space-y-1">${shiftRowsHtml}</div>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    function removeShiftRow(index) {
-      if (!confirm('このシフト割当を削除しますか？')) return;
-      currentConfirmedShifts.splice(index, 1);
-      renderAdminDailyEdits();
-    }
-
-    function saveAdminShiftEdits() {
-      const yearMonth = document.getElementById('target-month').value;
-      currentConfirmedShifts.forEach((s, idx) => {
-        const startEl = document.getElementById(`edit-start-${idx}`);
-        const endEl = document.getElementById(`edit-end-${idx}`);
-        if (startEl && endEl) {
-          s.startTime = startEl.value;
-          s.endTime = endEl.value;
-        }
-      });
-      document.getElementById('loading').classList.remove('hidden');
-      postToGas({ action: 'saveConfirmedShifts', userId: userId, yearMonth: yearMonth, shifts: currentConfirmedShifts }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
-        if (res.success) {
-          alert('修正内容を保存しました！');
-          loadConfirmedShifts();
         }
       });
     }
