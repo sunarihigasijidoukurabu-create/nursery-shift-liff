@@ -126,7 +126,7 @@
             <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>充足</span>
             <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-rose-500 mr-1"></span>人員不足</span>
             <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-amber-500 mr-1"></span>行事メモ</span>
-            <span class="text-slate-400">日付タップで帯グラフ表示</span>
+            <span class="text-slate-400">日付タップでガントチャート</span>
           </div>
 
           <div class="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-400 bg-slate-50 p-1.5 rounded-lg">
@@ -134,7 +134,7 @@
           </div>
           <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-xs"></div>
           
-          <!-- 選択日の詳細パネル（タイムライン帯グラフ付き） -->
+          <!-- 選択日の詳細パネル（全職員タイムライン帯グラフ付き） -->
           <div id="calendar-day-detail" class="p-3 bg-white border border-slate-200 rounded-xl text-xs hidden space-y-2.5 shadow-sm"></div>
         </div>
       </div>
@@ -167,10 +167,10 @@
           <div class="flex justify-between items-center border-b pb-2">
             <div>
               <h2 class="font-bold text-xs text-slate-800">日別シフト手修正（カレンダー）</h2>
-              <p class="text-[10px] text-slate-400">日付タップで行事・開所時間・職員の帯グラフ確認</p>
+              <p class="text-[10px] text-slate-400">日付をタップして直感的に手修正・帯グラフ確認</p>
             </div>
             <button onclick="saveAdminShiftEdits()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm">
-              変更を保存
+              月全体を一括保存
             </button>
           </div>
 
@@ -218,12 +218,13 @@
 
             <div id="admin-day-alert-box" class="hidden p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs space-y-1"></div>
 
-            <!-- ★管理者用：帯グラフタイムライン表示エリア -->
+            <!-- 管理者用：全職員ガントチャート表示エリア -->
             <div id="admin-timeline-chart-container" class="bg-white p-2.5 rounded-xl border border-slate-200 space-y-2"></div>
 
             <!-- 当日シフト一覧（変更・時間編集・削除） -->
             <div id="admin-day-shift-list" class="space-y-2 text-xs"></div>
 
+            <!-- 職員追加フォーム -->
             <div class="bg-white p-2.5 rounded-xl border border-dashed border-slate-300 space-y-2">
               <span class="text-[10px] font-bold text-slate-500 block"><i class="fa-solid fa-user-plus mr-1 text-green-600"></i>職員を追加</span>
               <div class="flex items-center space-x-1.5">
@@ -236,6 +237,12 @@
                 </button>
               </div>
             </div>
+
+            <!-- この日だけの保存ボタン -->
+            <button onclick="saveAdminShiftEdits()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center space-x-1.5">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>この日のシフト変更を保存する</span>
+            </button>
           </div>
         </div>
 
@@ -296,6 +303,12 @@
       if (!tStr) return 0;
       const [h, m] = tStr.split(':').map(Number);
       return (h || 0) * 60 + (m || 0);
+    }
+
+    function minutesToTime(mins) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
 
     window.onload = function() {
@@ -592,7 +605,7 @@
       }
     }
 
-    // 一般カレンダー：マス内の表記をシンプル化し、時間と行事を見やすく配置
+    // 一般カレンダー：マス内のレイアウトをすっきりと整理
     function renderCalendarView() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -620,10 +633,10 @@
         if (!coverage.isClosed) {
           if (coverage.isShortage) {
             bgBorderClass = 'bg-rose-50 border-rose-300 ring-1 ring-rose-200';
-            countBadgeHtml = `<span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">⚠️${dayShifts.length}/${coverage.totalRequired}</span>`;
+            countBadgeHtml = `<span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">⚠️${dayShifts.length}/${coverage.totalRequired}</span>`;
           } else {
             bgBorderClass = 'bg-emerald-50/70 border-emerald-300';
-            countBadgeHtml = `<span class="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">${dayShifts.length}名</span>`;
+            countBadgeHtml = `<span class="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">${dayShifts.length}名</span>`;
           }
         }
 
@@ -637,7 +650,7 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '14:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[10px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold">⏰${sStart}-${sEnd}</div>`;
+          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
         }
 
         const cell = document.createElement('div');
@@ -657,65 +670,83 @@
       }
     }
 
-    // タイムライン帯グラフ生成用コンポーネント
+    // 全職員対応タイムライン帯グラフ生成関数
     function generateTimelineChartHtml(slots, shifts) {
-      if (slots.length === 0 || shifts.length === 0) {
-        return '<p class="text-slate-400 text-xs py-1">開所時間または出勤シフトがありません。</p>';
+      if (slots.length === 0 && shifts.length === 0) {
+        return '<p class="text-slate-400 text-xs py-2 text-center">開所設定および出勤シフトがありません。</p>';
       }
 
-      // 開所時間範囲の算出
-      let minStartM = 24 * 60;
-      let maxEndM = 0;
+      let minStartM = 7 * 60;   // 07:00
+      let maxEndM = 19 * 60;    // 19:00
+
       slots.forEach(s => {
         const sM = timeToMinutes(formatTimeDisplay(s['開始時間'], '07:30'));
         const eM = timeToMinutes(formatTimeDisplay(s['終了時間'], '18:30'));
-        if (sM < minStartM) minStartM = sM;
-        if (eM > maxEndM) maxEndM = eM;
+        if (sM < minStartM) minStartM = Math.floor(sM / 60) * 60;
+        if (eM > maxEndM) maxEndM = Math.ceil(eM / 60) * 60;
       });
 
-      // シフト勤務時間が開所時間を超えている場合のケア
       shifts.forEach(s => {
         const sM = timeToMinutes(formatTimeDisplay(s.startTime, '07:30'));
         const eM = timeToMinutes(formatTimeDisplay(s.endTime, '18:30'));
-        if (sM < minStartM) minStartM = sM;
-        if (eM > maxEndM) maxEndM = eM;
+        if (sM < minStartM) minStartM = Math.floor(sM / 60) * 60;
+        if (eM > maxEndM) maxEndM = Math.ceil(eM / 60) * 60;
       });
 
       const totalSpan = maxEndM - minStartM || 1;
-      const startLabel = minutesToTime(minStartM);
-      const endLabel = minutesToTime(maxEndM);
+      const startHour = Math.floor(minStartM / 60);
+      const endHour = Math.ceil(maxEndM / 60);
 
-      let barsHtml = '';
-      shifts.forEach(s => {
-        const sM = timeToMinutes(formatTimeDisplay(s.startTime, '07:30'));
-        const eM = timeToMinutes(formatTimeDisplay(s.endTime, '18:30'));
-        const leftPercent = Math.max(0, ((sM - minStartM) / totalSpan) * 100);
-        const widthPercent = Math.min(100 - leftPercent, Math.max(5, ((eM - sM) / totalSpan) * 100));
-        const isRegular = s.jobType === '正社員';
+      let rulerCols = '';
+      for (let h = startHour; h < endHour; h++) {
+        rulerCols += `<div class="flex-1 text-[9px] text-slate-400 text-left border-l border-slate-200 pl-0.5">${h}</div>`;
+      }
 
-        barsHtml += `
-          <div class="space-y-0.5">
-            <div class="flex justify-between items-center text-[10px]">
-              <span class="font-bold text-slate-700 truncate w-24">${s.staffName} <span class="text-[9px] font-normal text-slate-400">(${s.jobType})</span></span>
-              <span class="font-mono text-slate-500 font-semibold">${s.startTime}〜${s.endTime}</span>
-            </div>
-            <div class="w-full bg-slate-100 rounded-full h-3.5 relative overflow-hidden">
-              <div class="absolute h-full rounded-full flex items-center justify-center text-[9px] text-white font-bold tracking-tight shadow-sm ${isRegular ? 'bg-indigo-500' : 'bg-emerald-500'}"
-                   style="left: ${leftPercent}%; width: ${widthPercent}%;">
-                ${formatTimeDisplay(s.startTime)} - ${formatTimeDisplay(s.endTime)}
-              </div>
-            </div>
-          </div>
-        `;
+      let openBands = '';
+      slots.forEach(s => {
+        const sM = timeToMinutes(formatTimeDisplay(s['開始時間'], '07:30'));
+        const eM = timeToMinutes(formatTimeDisplay(s['終了時間'], '18:30'));
+        const lP = Math.max(0, ((sM - minStartM) / totalSpan) * 100);
+        const wP = Math.min(100 - lP, ((eM - sM) / totalSpan) * 100);
+        openBands += `<div class="absolute top-0 bottom-0 bg-blue-50/60 border-x border-blue-200 pointer-events-none" style="left:${lP}%;width:${wP}%;"></div>`;
       });
 
+      let barsHtml = '';
+      if (shifts.length === 0) {
+        barsHtml = '<p class="text-slate-400 text-xs py-3 text-center">この日の出勤者はいません。</p>';
+      } else {
+        shifts.forEach(s => {
+          const sM = timeToMinutes(formatTimeDisplay(s.startTime, '07:30'));
+          const eM = timeToMinutes(formatTimeDisplay(s.endTime, '18:30'));
+          const leftPercent = Math.max(0, ((sM - minStartM) / totalSpan) * 100);
+          const widthPercent = Math.min(100 - leftPercent, Math.max(4, ((eM - sM) / totalSpan) * 100));
+          const isRegular = s.jobType === '正社員';
+
+          barsHtml += `
+            <div class="flex items-center space-x-2 py-1 border-b border-slate-100 last:border-none">
+              <div class="w-24 truncate text-left">
+                <span class="text-xs font-bold text-slate-700">${s.staffName}</span>
+                <span class="text-[9px] px-1 py-0.2 rounded font-bold ${isRegular ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}">${isRegular ? '正規' : 'パート'}</span>
+              </div>
+              <div class="flex-1 relative h-6 bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
+                ${openBands}
+                <div class="absolute top-1 bottom-1 rounded shadow-sm flex items-center justify-center text-[9px] text-white font-bold tracking-tight ${isRegular ? 'bg-blue-600' : 'bg-emerald-600'}"
+                     style="left: ${leftPercent}%; width: ${widthPercent}%;">
+                  ${formatTimeDisplay(s.startTime)}-${formatTimeDisplay(s.endTime)}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      }
+
       return `
-        <div class="space-y-2 pt-1 border-t border-slate-100">
-          <div class="flex justify-between text-[10px] text-slate-400 font-mono font-bold px-0.5">
-            <span>◀ 開所 ${startLabel}</span>
-            <span>閉所 ${endLabel} ▶</span>
+        <div class="space-y-1">
+          <div class="flex items-center space-x-2 pl-26">
+            <div class="w-24 text-[9px] font-bold text-slate-400">氏名/区分</div>
+            <div class="flex-1 flex h-4 items-end">${rulerCols}</div>
           </div>
-          <div class="space-y-2">${barsHtml}</div>
+          <div class="bg-white rounded-xl p-2 border border-slate-200 space-y-1">${barsHtml}</div>
         </div>
       `;
     }
@@ -748,7 +779,6 @@
         ? coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])}（必要: ${s['必要人数']}名 / ${s['配置優先'] || '指定なし'}）`).join(', ')
         : '設定なし（休所日）';
 
-      // タイムライン帯グラフの生成
       let timelineChartHtml = generateTimelineChartHtml(coverage.slots, shifts);
 
       detailBox.innerHTML = `
@@ -760,7 +790,7 @@
         <div class="text-[11px] text-slate-500 font-medium"><i class="fa-regular fa-clock mr-1"></i>開所枠: ${openTimeSummary}</div>
         ${shortageAlertHtml}
         <div class="pt-1">
-          <span class="text-[11px] font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-chart-gantt text-blue-500 mr-1"></i>勤務帯グラフ（タイムライン）</span>
+          <span class="text-[11px] font-bold text-slate-700 block mb-1"><i class="fa-solid fa-chart-gantt text-blue-500 mr-1"></i>当日出勤の全職員ガントチャート</span>
           ${timelineChartHtml}
         </div>
       `;
@@ -803,7 +833,7 @@
       });
     }
 
-    // 管理者カレンダー：マス内の表記をシンプル化し、時間と行事を見やすく配置
+    // 管理者カレンダー：マス内のレイアウトをすっきりと整理
     function renderAdminCalendarGrid() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -832,10 +862,10 @@
         if (!coverage.isClosed) {
           if (coverage.isShortage) {
             bgBorderClass = 'bg-rose-50 border-rose-300 ring-1 ring-rose-200';
-            countBadgeHtml = `<span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">⚠️${dayShifts.length}/${coverage.totalRequired}</span>`;
+            countBadgeHtml = `<span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">⚠️${dayShifts.length}/${coverage.totalRequired}</span>`;
           } else {
             bgBorderClass = 'bg-emerald-50 border-emerald-300';
-            countBadgeHtml = `<span class="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">${dayShifts.length}名</span>`;
+            countBadgeHtml = `<span class="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">${dayShifts.length}名</span>`;
           }
         }
 
@@ -853,7 +883,7 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '14:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[10px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold">⏰${sStart}-${sEnd}</div>`;
+          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
         }
 
         const cell = document.createElement('div');
@@ -883,6 +913,7 @@
       renderAdminDayShiftList(dateStr);
     }
 
+    // 管理者：選択日の編集パネル描画（ガントチャート＋シフト手修正）
     function renderAdminDayShiftList(dateStr) {
       const panel = document.getElementById('admin-edit-panel');
       panel.classList.remove('hidden');
@@ -914,12 +945,8 @@
         document.getElementById('quick-day-priority').value = '指定なし';
       }
 
-      // 管理者パネル内：タイムライン帯グラフの描画
-      const chartContainer = document.getElementById('admin-timeline-chart-container');
-      chartContainer.innerHTML = `
-        <span class="text-[11px] font-bold text-slate-700 block mb-1"><i class="fa-solid fa-chart-gantt text-blue-500 mr-1"></i>勤務帯グラフ（タイムライン）</span>
-        ${generateTimelineChartHtml(coverage.slots, dayShiftsWithIdx)}
-      `;
+      // 管理者パネル内：全職員ガントチャートを描画
+      updateAdminTimelineChart(coverage.slots, dayShiftsWithIdx);
 
       if (coverage.isShortage) {
         alertBox.classList.remove('hidden');
@@ -965,14 +992,82 @@
             </select>
           </div>
           <div class="flex items-center space-x-1">
-            <input type="time" id="edit-start-${item.originalIndex}" value="${formatTimeDisplay(item.startTime)}" onchange="updateShiftTime(${item.originalIndex})" class="p-1 border rounded text-[11px]">
+            <input type="time" id="edit-start-${item.originalIndex}" value="${formatTimeDisplay(item.startTime)}" oninput="onShiftTimeInput(${item.originalIndex})" class="p-1 border rounded text-[11px]">
             <span>-</span>
-            <input type="time" id="edit-end-${item.originalIndex}" value="${formatTimeDisplay(item.endTime)}" onchange="updateShiftTime(${item.originalIndex})" class="p-1 border rounded text-[11px]">
+            <input type="time" id="edit-end-${item.originalIndex}" value="${formatTimeDisplay(item.endTime)}" oninput="onShiftTimeInput(${item.originalIndex})" class="p-1 border rounded text-[11px]">
             <button onclick="removeShiftRow(${item.originalIndex})" title="削除" class="text-red-500 hover:bg-red-50 font-bold p-1 rounded text-xs ml-1"><i class="fa-solid fa-trash-can"></i></button>
           </div>
         `;
         listContainer.appendChild(row);
       });
+    }
+
+    function updateAdminTimelineChart(slots, shifts) {
+      const chartContainer = document.getElementById('admin-timeline-chart-container');
+      if (!chartContainer) return;
+      chartContainer.innerHTML = `
+        <span class="text-[11px] font-bold text-slate-700 block mb-1"><i class="fa-solid fa-chart-gantt text-blue-500 mr-1"></i>当日出勤の全職員ガントチャート</span>
+        ${generateTimelineChartHtml(slots, shifts)}
+      `;
+    }
+
+    // 時間変更時にガントチャートのみリアルタイム更新（入力欄を壊さない）
+    function onShiftTimeInput(originalIndex) {
+      const sVal = document.getElementById(`edit-start-${originalIndex}`).value;
+      const eVal = document.getElementById(`edit-end-${originalIndex}`).value;
+      currentConfirmedShifts[originalIndex].startTime = sVal;
+      currentConfirmedShifts[originalIndex].endTime = eVal;
+
+      const dayShifts = currentConfirmedShifts.filter(s => s.date === selectedAdminDate);
+      const slots = getSlotsForDate(selectedAdminDate);
+      updateAdminTimelineChart(slots, dayShifts);
+    }
+
+    function changeStaffUser(originalIndex, newUserId) {
+      const staffObj = masterStaffList.find(s => String(s['LINEユーザーID']) === String(newUserId));
+      currentConfirmedShifts[originalIndex].userId = newUserId;
+      currentConfirmedShifts[originalIndex].staffName = staffObj ? staffObj['職員氏名'] : '不明';
+      currentConfirmedShifts[originalIndex].jobType = staffObj ? staffObj['雇用区分'] : 'パート';
+
+      const dayShifts = currentConfirmedShifts.filter(s => s.date === selectedAdminDate);
+      const slots = getSlotsForDate(selectedAdminDate);
+      updateAdminTimelineChart(slots, dayShifts);
+    }
+
+    function removeShiftRow(index) {
+      if (!confirm('このシフト割当を削除しますか？')) return;
+      currentConfirmedShifts.splice(index, 1);
+      renderAdminCalendarGrid();
+      renderAdminDayShiftList(selectedAdminDate);
+    }
+
+    function addStaffToDay() {
+      if (!selectedAdminDate) {
+        alert('カレンダーから日付を選択してください。');
+        return;
+      }
+      const staffSelect = document.getElementById('new-shift-staff');
+      const selectedUserId = staffSelect.value;
+      const staffObj = masterStaffList.find(s => String(s['LINEユーザーID']) === String(selectedUserId));
+      const startTime = document.getElementById('new-shift-start').value || '08:30';
+      const endTime = document.getElementById('new-shift-end').value || '17:30';
+
+      const alreadyAssigned = currentConfirmedShifts.some(s => s.date === selectedAdminDate && String(s.userId) === String(selectedUserId));
+      if (alreadyAssigned) {
+        if (!confirm('この職員はこの日に既にシフトが入っています。追加しますか？')) return;
+      }
+
+      currentConfirmedShifts.push({
+        date: selectedAdminDate,
+        userId: selectedUserId,
+        staffName: staffObj ? staffObj['職員氏名'] : '不明',
+        jobType: staffObj ? staffObj['雇用区分'] : 'パート',
+        startTime: startTime,
+        endTime: endTime
+      });
+
+      renderAdminCalendarGrid();
+      renderAdminDayShiftList(selectedAdminDate);
     }
 
     function saveDaySpecificSetting() {
@@ -1030,56 +1125,6 @@
         opt.innerText = `${s['職員氏名']} (${s['雇用区分']})`;
         select.appendChild(opt);
       });
-    }
-
-    function addStaffToDay() {
-      if (!selectedAdminDate) {
-        alert('カレンダーから日付を選択してください。');
-        return;
-      }
-      const staffSelect = document.getElementById('new-shift-staff');
-      const selectedUserId = staffSelect.value;
-      const staffObj = masterStaffList.find(s => String(s['LINEユーザーID']) === String(selectedUserId));
-      const startTime = document.getElementById('new-shift-start').value || '08:30';
-      const endTime = document.getElementById('new-shift-end').value || '17:30';
-
-      const alreadyAssigned = currentConfirmedShifts.some(s => s.date === selectedAdminDate && String(s.userId) === String(selectedUserId));
-      if (alreadyAssigned) {
-        if (!confirm('この職員はこの日に既にシフトが入っています。追加しますか？')) return;
-      }
-
-      currentConfirmedShifts.push({
-        date: selectedAdminDate,
-        userId: selectedUserId,
-        staffName: staffObj ? staffObj['職員氏名'] : '不明',
-        jobType: staffObj ? staffObj['雇用区分'] : 'パート',
-        startTime: startTime,
-        endTime: endTime
-      });
-
-      renderAdminCalendarGrid();
-    }
-
-    function changeStaffUser(originalIndex, newUserId) {
-      const staffObj = masterStaffList.find(s => String(s['LINEユーザーID']) === String(newUserId));
-      currentConfirmedShifts[originalIndex].userId = newUserId;
-      currentConfirmedShifts[originalIndex].staffName = staffObj ? staffObj['職員氏名'] : '不明';
-      currentConfirmedShifts[originalIndex].jobType = staffObj ? staffObj['雇用区分'] : 'パート';
-      renderAdminCalendarGrid();
-    }
-
-    function updateShiftTime(originalIndex) {
-      const sVal = document.getElementById(`edit-start-${originalIndex}`).value;
-      const eVal = document.getElementById(`edit-end-${originalIndex}`).value;
-      currentConfirmedShifts[originalIndex].startTime = sVal;
-      currentConfirmedShifts[originalIndex].endTime = eVal;
-      renderAdminCalendarGrid();
-    }
-
-    function removeShiftRow(index) {
-      if (!confirm('このシフト割当を削除しますか？')) return;
-      currentConfirmedShifts.splice(index, 1);
-      renderAdminCalendarGrid();
     }
 
     function saveAdminShiftEdits() {
