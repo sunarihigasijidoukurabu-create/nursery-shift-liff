@@ -16,7 +16,7 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans pb-12">
 
-  <!-- ★全画面ダークオーバーレイ・ローディング表示 -->
+  <!-- 全画面ダークオーバーレイ・ローディング -->
   <div id="loading" class="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center space-y-3 hidden">
     <div class="bg-white px-6 py-5 rounded-2xl shadow-2xl flex flex-col items-center space-y-3 min-w-[180px]">
       <div class="inline-block animate-spin rounded-full h-9 w-9 border-4 border-green-500 border-t-transparent"></div>
@@ -166,8 +166,8 @@
         <!-- 確定シフト手動調整（カレンダー型UI） -->
         <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="border-b pb-2">
-  <h2 class="font-bold text-xs text-slate-800">日別シフト手修正（カレンダー）</h2>
-  <p class="text-[10px] text-slate-400">日付をタップして直感的に手修正・帯グラフ確認</p>
+            <h2 class="font-bold text-xs text-slate-800">日別シフト手修正（カレンダー）</h2>
+            <p class="text-[10px] text-slate-400">日付をタップして直感的に手修正・帯グラフ確認</p>
           </div>
 
           <div class="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-400 bg-slate-50 p-1.5 rounded-lg">
@@ -182,25 +182,35 @@
               <span id="admin-edit-count-badge" class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">0名</span>
             </div>
 
-            <!-- ★特定日の開所・人員設定カード（複数スロット完全対応） -->
+            <!-- ★特定日の開所・人員設定カード（閉所日トグル対応） -->
             <div class="bg-white p-2.5 rounded-xl border border-slate-200 space-y-2">
               <div class="flex justify-between items-center">
                 <span class="text-[11px] font-bold text-slate-700 flex items-center">
                   <i class="fa-solid fa-pen-to-square text-amber-500 mr-1.5"></i>この日の開所・人員・行事設定
                 </span>
-                <button onclick="addDaySlotRow()" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold border border-slate-300">
+                <button id="btn-add-day-slot" onclick="addDaySlotRow()" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold border border-slate-300">
                   + 時間帯追加
                 </button>
+              </div>
+
+              <!-- 閉所日チェックボックス -->
+              <div class="flex items-center space-x-2 bg-rose-50 p-2 rounded-lg border border-rose-200">
+                <input type="checkbox" id="check-is-closed" onchange="toggleDayClosedSetting(this.checked)" class="w-4 h-4 text-rose-600 rounded">
+                <label for="check-is-closed" class="text-xs font-bold text-rose-800 cursor-pointer">
+                  🚫 この日を閉所（休所）にする
+                </label>
               </div>
 
               <!-- 行事メモ（日共通） -->
               <div>
                 <label class="text-[9px] text-slate-400 font-bold block mb-0.5">行事・メモ（カレンダー表示）</label>
-                <input type="text" id="quick-day-memo" placeholder="例: 県民の日ホリデー, 一斉下校" class="w-full p-1.5 border rounded-lg bg-slate-50 text-xs">
+                <input type="text" id="quick-day-memo" placeholder="例: 県民の日ホリデー, 年末年始休所" class="w-full p-1.5 border rounded-lg bg-slate-50 text-xs">
               </div>
 
-              <!-- 時間帯スロット群の一覧コンテナ -->
-              <div id="quick-day-slots-list" class="space-y-1.5 pt-1"></div>
+              <!-- 開所時間帯スロット一覧コンテナ（閉所時は自動で非表示） -->
+              <div id="quick-day-slots-container">
+                <div id="quick-day-slots-list" class="space-y-1.5 pt-1"></div>
+              </div>
 
               <button onclick="saveDaySpecificSettings()" class="w-full bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-xs font-bold shadow-sm">
                 この日の開所・人員設定を反映する
@@ -276,7 +286,6 @@
     let selectedAdminDate = "";
     let latestAutoAlerts = [];
 
-    // ローディング表示ヘルパー
     function showLoading(msg = "処理中...") {
       document.getElementById('loading-msg').innerText = msg;
       document.getElementById('loading').classList.remove('hidden');
@@ -418,6 +427,7 @@
       return '';
     }
 
+    // 閉所日判定を含む充足度チェック
     function evaluateDayCoverage(dateStr, dayShifts) {
       const slots = getSlotsForDate(dateStr);
       const memo = getMemoForDate(dateStr);
@@ -444,6 +454,11 @@
           }
         }
       });
+
+      // ★必要人数が全時間0名の場合は「閉所日」
+      if (maxReq === 0) {
+        return { isClosed: true, isShortage: false, shortages: [], slots: slots, memo: memo, totalRequired: 0, minAssigned: 0, maxRequired: 0 };
+      }
 
       dayShifts.forEach(s => {
         const sStart = timeToMinutes(formatTimeDisplay(s.startTime, '07:30'));
@@ -695,15 +710,20 @@
             bgBorderClass = 'bg-emerald-50/70 border-emerald-300';
             countBadgeHtml = `<span class="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">${dayShifts.length}名</span>`;
           }
+        } else {
+          // ★閉所日デザイン
+          bgBorderClass = 'bg-slate-100 border-slate-200 opacity-80';
         }
 
         let memoBadgeHtml = '';
-        if (coverage.memo) {
+        if (coverage.isClosed) {
+          memoBadgeHtml = `<div class="bg-slate-200 text-slate-600 text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight mt-1 border border-slate-300 text-center">${coverage.memo ? '🏷️' + coverage.memo : '🚫 閉所日'}</div>`;
+        } else if (coverage.memo) {
           memoBadgeHtml = `<div class="bg-amber-100 text-amber-900 text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight mt-1 border border-amber-200">🏷️${coverage.memo}</div>`;
         }
 
         let openTimeHtml = '';
-        if (coverage.slots.length > 0) {
+        if (!coverage.isClosed && coverage.slots.length > 0) {
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '07:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
@@ -727,7 +747,11 @@
       }
     }
 
-    function generateTimelineChartHtml(slots, shifts) {
+    function generateTimelineChartHtml(slots, shifts, isClosed) {
+      if (isClosed) {
+        return '<p class="text-slate-400 text-xs py-3 text-center font-bold">🚫 本日は閉所日です（シフト配置なし）</p>';
+      }
+
       if (slots.length === 0 && shifts.length === 0) {
         return '<p class="text-slate-400 text-xs py-2 text-center">開所設定および出勤シフトがありません。</p>';
       }
@@ -764,11 +788,13 @@
         const eM = timeToMinutes(formatTimeDisplay(s['終了時間'], '18:30'));
         const lP = Math.max(0, ((sM - minStartM) / totalSpan) * 100);
         const wP = Math.min(100 - lP, ((eM - sM) / totalSpan) * 100);
-        const reqNum = s['必要人数'] || 2;
-        openBands += `
-          <div class="absolute top-0 bottom-0 bg-blue-50/50 border-x border-blue-200 pointer-events-none flex items-start justify-end pr-1 text-[8px] text-blue-400 font-mono" style="left:${lP}%;width:${wP}%;">
-            需${reqNum}
-          </div>`;
+        const reqNum = s['必要人数'] || 0;
+        if (reqNum > 0) {
+          openBands += `
+            <div class="absolute top-0 bottom-0 bg-blue-50/50 border-x border-blue-200 pointer-events-none flex items-start justify-end pr-1 text-[8px] text-blue-400 font-mono" style="left:${lP}%;width:${wP}%;">
+              需${reqNum}
+            </div>`;
+        }
       });
 
       let barsHtml = '';
@@ -815,11 +841,20 @@
       const detailBox = document.getElementById('calendar-day-detail');
       detailBox.classList.remove('hidden');
 
-      let memoHeaderHtml = coverage.memo ? `
-        <div class="bg-amber-50 border border-amber-200 p-2 rounded-lg text-amber-900 text-xs font-bold flex items-center">
-          <i class="fa-solid fa-tag text-amber-500 mr-1.5"></i>行事・メモ: ${coverage.memo}
-        </div>
-      ` : '';
+      let memoHeaderHtml = '';
+      if (coverage.isClosed) {
+        memoHeaderHtml = `
+          <div class="bg-slate-100 border border-slate-300 p-2 rounded-lg text-slate-700 text-xs font-bold flex items-center">
+            <i class="fa-solid fa-ban text-slate-500 mr-1.5"></i>本日は閉所日（休所）です ${coverage.memo ? ' : ' + coverage.memo : ''}
+          </div>
+        `;
+      } else if (coverage.memo) {
+        memoHeaderHtml = `
+          <div class="bg-amber-50 border border-amber-200 p-2 rounded-lg text-amber-900 text-xs font-bold flex items-center">
+            <i class="fa-solid fa-tag text-amber-500 mr-1.5"></i>行事・メモ: ${coverage.memo}
+          </div>
+        `;
+      }
 
       let shortageAlertHtml = '';
       if (coverage.isShortage) {
@@ -835,11 +870,13 @@
         `;
       }
 
-      let openTimeSummary = coverage.slots.length > 0
-        ? coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])} (必要: ${s['必要人数']}名 / ${s['配置優先'] || '指定なし'})`).join(', ')
-        : '設定なし（休所日）';
+      let openTimeSummary = coverage.isClosed
+        ? '閉所日（休所）'
+        : (coverage.slots.length > 0
+            ? coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])} (必要: ${s['必要人数']}名 / ${s['配置優先'] || '指定なし'})`).join(', ')
+            : '設定なし（休所日）');
 
-      let timelineChartHtml = generateTimelineChartHtml(coverage.slots, shifts);
+      let timelineChartHtml = generateTimelineChartHtml(coverage.slots, shifts, coverage.isClosed);
 
       detailBox.innerHTML = `
         <div class="flex justify-between items-center border-b border-slate-200 pb-1.5">
@@ -926,6 +963,8 @@
             bgBorderClass = 'bg-emerald-50 border-emerald-300';
             countBadgeHtml = `<span class="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">${dayShifts.length}名</span>`;
           }
+        } else {
+          bgBorderClass = 'bg-slate-100 border-slate-200 opacity-80';
         }
 
         if (isSelected) {
@@ -933,16 +972,18 @@
         }
 
         let memoBadgeHtml = '';
-        if (coverage.memo) {
+        if (coverage.isClosed) {
+          memoBadgeHtml = `<div class="bg-slate-200 text-slate-600 text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight mt-1 border border-slate-300 text-center">${coverage.memo ? '🏷️' + coverage.memo : '🚫 閉所日'}</div>`;
+        } else if (coverage.memo) {
           memoBadgeHtml = `<div class="bg-amber-100 text-amber-900 text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight mt-1 border border-amber-200">🏷️${coverage.memo}</div>`;
         }
 
         let openTimeHtml = '';
-        if (coverage.slots.length > 0) {
+        if (!coverage.isClosed && coverage.slots.length > 0) {
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '07:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
+          openTimeHtml = `<div class="text-[10px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
         }
 
         const cell = document.createElement('div');
@@ -972,7 +1013,6 @@
       renderAdminDayShiftList(dateStr);
     }
 
-    // 管理者：選択日の編集パネル描画（特定日の複数スロット完全対応）
     function renderAdminDayShiftList(dateStr) {
       const panel = document.getElementById('admin-edit-panel');
       panel.classList.remove('hidden');
@@ -996,11 +1036,15 @@
       // 行事メモの初期値をセット
       document.getElementById('quick-day-memo').value = coverage.memo || '';
 
-      // ★特定日の複数時間帯スロット一覧を描画
+      // 閉所日チェックのセット
+      const isClosedCheck = document.getElementById('check-is-closed');
+      isClosedCheck.checked = coverage.isClosed;
+      toggleDayClosedSetting(coverage.isClosed);
+
+      // 特定日スロット一覧を描画
       renderDaySpecificSlots(dateStr);
 
-      // ガントチャート更新
-      updateAdminTimelineChart(coverage.slots, dayShiftsWithIdx);
+      updateAdminTimelineChart(coverage.slots, dayShiftsWithIdx, coverage.isClosed);
 
       if (coverage.isShortage) {
         alertBox.classList.remove('hidden');
@@ -1052,15 +1096,25 @@
       });
     }
 
-    // ★特定日スロット一覧の描画（複数行対応）
+    // 閉所日チェック時の表示切替
+    function toggleDayClosedSetting(isClosed) {
+      const slotsContainer = document.getElementById('quick-day-slots-container');
+      const addBtn = document.getElementById('btn-add-day-slot');
+      if (isClosed) {
+        slotsContainer.classList.add('hidden');
+        addBtn.classList.add('hidden');
+      } else {
+        slotsContainer.classList.remove('hidden');
+        addBtn.classList.remove('hidden');
+      }
+    }
+
     function renderDaySpecificSlots(dateStr) {
       const container = document.getElementById('quick-day-slots-list');
       container.innerHTML = '';
 
-      // この日（特定日）として登録されているスロットを抽出
       let daySlots = masterRequirements.filter(r => String(r['対象日']).substring(0, 10) === dateStr);
 
-      // 特定日設定がまだない場合は、平日共通設定を雛形として読み込む
       if (daySlots.length === 0) {
         const d = new Date(dateStr);
         const day = d.getDay();
@@ -1072,12 +1126,15 @@
         }
       }
 
-      if (daySlots.length === 0) {
+      // 有効な開所枠（人数>0）を抽出
+      const openSlots = daySlots.filter(s => Number(s['必要人数'] || 0) > 0);
+
+      if (openSlots.length === 0) {
         addDaySlotRow("07:30", "18:30", 2, "指定なし");
         return;
       }
 
-      daySlots.forEach(s => {
+      openSlots.forEach(s => {
         addDaySlotRow(
           formatTimeDisplay(s['開始時間'], '07:30'),
           formatTimeDisplay(s['終了時間'], '18:30'),
@@ -1087,7 +1144,6 @@
       });
     }
 
-    // スロット行を追加
     function addDaySlotRow(start = "07:30", end = "18:30", count = 2, priority = "指定なし") {
       const container = document.getElementById('quick-day-slots-list');
       const div = document.createElement('div');
@@ -1114,33 +1170,44 @@
       container.appendChild(div);
     }
 
-    // ★特定日の複数スロット設定を保存・反映
+    // 閉所日設定を含めた保存
     function saveDaySpecificSettings() {
       if (!selectedAdminDate) return;
       const memo = document.getElementById('quick-day-memo').value.trim();
-      const rows = document.querySelectorAll('.day-slot-row');
+      const isClosed = document.getElementById('check-is-closed').checked;
 
-      if (rows.length === 0) {
-        alert('時間帯スロットが1つもありません。「+ 時間帯追加」を押してください。');
-        return;
-      }
-
-      // 既存の masterRequirements からこの日（特定日）の古い設定をすべて削除
+      // 既存の特定日設定を削除
       masterRequirements = masterRequirements.filter(r => String(r['対象日']).substring(0, 10) !== selectedAdminDate);
 
-      // 画面上の全スロット行を新しい特定日設定として追加
-      rows.forEach(r => {
+      if (isClosed) {
+        // ★閉所日の場合は必要人数0名として1件登録
         masterRequirements.push({
           '対象日': selectedAdminDate,
-          '開始時間': r.querySelector('.slot-start').value,
-          '終了時間': r.querySelector('.slot-end').value,
-          '必要人数': Number(r.querySelector('.slot-count').value || 2),
-          '配置優先': r.querySelector('.slot-priority').value,
-          'メモ': memo
+          '開始時間': '00:00',
+          '終了時間': '00:00',
+          '必要人数': 0,
+          '配置優先': '指定なし',
+          'メモ': memo || '閉所日'
         });
-      });
+      } else {
+        const rows = document.querySelectorAll('.day-slot-row');
+        if (rows.length === 0) {
+          alert('開所時間帯スロットがありません。「+ 時間帯追加」を押してください。');
+          return;
+        }
+        rows.forEach(r => {
+          masterRequirements.push({
+            '対象日': selectedAdminDate,
+            '開始時間': r.querySelector('.slot-start').value,
+            '終了時間': r.querySelector('.slot-end').value,
+            '必要人数': Number(r.querySelector('.slot-count').value || 2),
+            '配置優先': r.querySelector('.slot-priority').value,
+            'メモ': memo
+          });
+        });
+      }
 
-      showLoading("開所・人員設定を保存中...");
+      showLoading("開所・人員設定を反映中...");
 
       let reqPayload = masterRequirements.map(r => ({
         date: r['対象日'],
@@ -1154,7 +1221,7 @@
       postToGas({ action: 'saveRequirements', userId: userId, requirements: reqPayload }).then(res => {
         hideLoading();
         if (res.success) {
-          alert(`${selectedAdminDate} の開所・人員設定（${rows.length}件）を反映しました！`);
+          alert(`${selectedAdminDate} の設定を反映しました！`);
           loadAdminData();
         } else {
           alert('設定反映失敗: ' + res.message);
@@ -1165,12 +1232,12 @@
       });
     }
 
-    function updateAdminTimelineChart(slots, shifts) {
+    function updateAdminTimelineChart(slots, shifts, isClosed) {
       const chartContainer = document.getElementById('admin-timeline-chart-container');
       if (!chartContainer) return;
       chartContainer.innerHTML = `
         <span class="text-[11px] font-bold text-slate-700 block mb-1"><i class="fa-solid fa-chart-gantt text-blue-500 mr-1"></i>当日出勤の全職員ガントチャート</span>
-        ${generateTimelineChartHtml(slots, shifts)}
+        ${generateTimelineChartHtml(slots, shifts, isClosed)}
       `;
     }
 
@@ -1183,7 +1250,7 @@
       const dayShifts = currentConfirmedShifts.filter(s => s.date === selectedAdminDate);
       const coverage = evaluateDayCoverage(selectedAdminDate, dayShifts);
 
-      updateAdminTimelineChart(coverage.slots, dayShifts);
+      updateAdminTimelineChart(coverage.slots, dayShifts, coverage.isClosed);
 
       const alertBox = document.getElementById('admin-day-alert-box');
       if (coverage.isShortage) {
@@ -1213,7 +1280,7 @@
 
       const dayShifts = currentConfirmedShifts.filter(s => s.date === selectedAdminDate);
       const coverage = evaluateDayCoverage(selectedAdminDate, dayShifts);
-      updateAdminTimelineChart(coverage.slots, dayShifts);
+      updateAdminTimelineChart(coverage.slots, dayShifts, coverage.isClosed);
     }
 
     function removeShiftRow(index) {
@@ -1250,18 +1317,6 @@
 
       renderAdminCalendarGrid();
       renderAdminDayShiftList(selectedAdminDate);
-    }
-
-    function updateAdminStaffSelectOptions() {
-      const select = document.getElementById('new-shift-staff');
-      if (!select) return;
-      select.innerHTML = '';
-      masterStaffList.filter(s => s['ステータス'] === '有効').forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s['LINEユーザーID'];
-        opt.innerText = `${s['職員氏名']} (${s['雇用区分']})`;
-        select.appendChild(opt);
-      });
     }
 
     function saveAdminShiftEdits() {
