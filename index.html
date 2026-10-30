@@ -126,7 +126,7 @@
             <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>充足</span>
             <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-rose-500 mr-1"></span>人員不足</span>
             <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-amber-500 mr-1"></span>行事メモ</span>
-            <span class="text-slate-400">日付タップで詳細</span>
+            <span class="text-slate-400">日付タップで帯グラフ表示</span>
           </div>
 
           <div class="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-400 bg-slate-50 p-1.5 rounded-lg">
@@ -134,7 +134,8 @@
           </div>
           <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-xs"></div>
           
-          <div id="calendar-day-detail" class="p-3 bg-white border border-slate-200 rounded-xl text-xs hidden space-y-2 shadow-sm"></div>
+          <!-- 選択日の詳細パネル（タイムライン帯グラフ付き） -->
+          <div id="calendar-day-detail" class="p-3 bg-white border border-slate-200 rounded-xl text-xs hidden space-y-2.5 shadow-sm"></div>
         </div>
       </div>
 
@@ -166,7 +167,7 @@
           <div class="flex justify-between items-center border-b pb-2">
             <div>
               <h2 class="font-bold text-xs text-slate-800">日別シフト手修正（カレンダー）</h2>
-              <p class="text-[10px] text-slate-400">日付タップで行事メモ・開所時間・職員の調整</p>
+              <p class="text-[10px] text-slate-400">日付タップで行事・開所時間・職員の帯グラフ確認</p>
             </div>
             <button onclick="saveAdminShiftEdits()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm">
               変更を保存
@@ -216,7 +217,11 @@
             </div>
 
             <div id="admin-day-alert-box" class="hidden p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs space-y-1"></div>
-            <div id="admin-day-slots-box" class="text-[11px] text-slate-600 font-medium"></div>
+
+            <!-- ★管理者用：帯グラフタイムライン表示エリア -->
+            <div id="admin-timeline-chart-container" class="bg-white p-2.5 rounded-xl border border-slate-200 space-y-2"></div>
+
+            <!-- 当日シフト一覧（変更・時間編集・削除） -->
             <div id="admin-day-shift-list" class="space-y-2 text-xs"></div>
 
             <div class="bg-white p-2.5 rounded-xl border border-dashed border-slate-300 space-y-2">
@@ -285,6 +290,12 @@
         return `${match[1].padStart(2, '0')}:${match[2]}`;
       }
       return defaultVal;
+    }
+
+    function timeToMinutes(tStr) {
+      if (!tStr) return 0;
+      const [h, m] = tStr.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
     }
 
     window.onload = function() {
@@ -581,7 +592,7 @@
       }
     }
 
-    // 一般カレンダー：名前を排除し、行事・開所時間・人数状況を見やすく表示
+    // 一般カレンダー：マス内の表記をシンプル化し、時間と行事を見やすく配置
     function renderCalendarView() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -593,7 +604,7 @@
 
       for (let i = 0; i < firstDayIndex; i++) {
         const emptyCell = document.createElement('div');
-        emptyCell.className = "min-h-[76px] bg-slate-50/50 rounded-lg";
+        emptyCell.className = "min-h-[72px] bg-slate-50/50 rounded-lg";
         grid.appendChild(emptyCell);
       }
 
@@ -604,23 +615,21 @@
         const coverage = evaluateDayCoverage(dateStr, dayShifts);
 
         let bgBorderClass = 'bg-white border-slate-200';
-        let statusBadgeHtml = '';
+        let countBadgeHtml = '';
 
         if (!coverage.isClosed) {
           if (coverage.isShortage) {
             bgBorderClass = 'bg-rose-50 border-rose-300 ring-1 ring-rose-200';
-            statusBadgeHtml = `<div class="bg-rose-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">⚠️ 不足 (${dayShifts.length}/${coverage.totalRequired})</div>`;
+            countBadgeHtml = `<span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">⚠️${dayShifts.length}/${coverage.totalRequired}</span>`;
           } else {
             bgBorderClass = 'bg-emerald-50/70 border-emerald-300';
-            statusBadgeHtml = `<div class="bg-emerald-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">👤 ${dayShifts.length}名 配置中</div>`;
+            countBadgeHtml = `<span class="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">${dayShifts.length}名</span>`;
           }
-        } else {
-          statusBadgeHtml = `<div class="text-[9px] text-slate-300 text-center mt-1">休所</div>`;
         }
 
         let memoBadgeHtml = '';
         if (coverage.memo) {
-          memoBadgeHtml = `<div class="bg-amber-100 text-amber-800 text-[9px] font-bold px-1 rounded truncate leading-tight mt-0.5 border border-amber-200">🏷️${coverage.memo}</div>`;
+          memoBadgeHtml = `<div class="bg-amber-100 text-amber-900 text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight mt-1 border border-amber-200">🏷️${coverage.memo}</div>`;
         }
 
         let openTimeHtml = '';
@@ -628,24 +637,87 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '14:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-semibold">⏰${sStart}-${sEnd}</div>`;
+          openTimeHtml = `<div class="text-[10px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold">⏰${sStart}-${sEnd}</div>`;
         }
 
         const cell = document.createElement('div');
-        cell.className = `min-h-[76px] p-1.5 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
+        cell.className = `min-h-[72px] p-1.5 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
         cell.onclick = () => showDayDetail(dateStr, dayShifts, coverage);
         cell.innerHTML = `
           <div>
             <div class="flex justify-between items-center">
-              <span class="text-[11px] font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
+              <span class="text-xs font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
+              ${countBadgeHtml}
             </div>
             ${memoBadgeHtml}
             ${openTimeHtml}
           </div>
-          ${statusBadgeHtml}
         `;
         grid.appendChild(cell);
       }
+    }
+
+    // タイムライン帯グラフ生成用コンポーネント
+    function generateTimelineChartHtml(slots, shifts) {
+      if (slots.length === 0 || shifts.length === 0) {
+        return '<p class="text-slate-400 text-xs py-1">開所時間または出勤シフトがありません。</p>';
+      }
+
+      // 開所時間範囲の算出
+      let minStartM = 24 * 60;
+      let maxEndM = 0;
+      slots.forEach(s => {
+        const sM = timeToMinutes(formatTimeDisplay(s['開始時間'], '07:30'));
+        const eM = timeToMinutes(formatTimeDisplay(s['終了時間'], '18:30'));
+        if (sM < minStartM) minStartM = sM;
+        if (eM > maxEndM) maxEndM = eM;
+      });
+
+      // シフト勤務時間が開所時間を超えている場合のケア
+      shifts.forEach(s => {
+        const sM = timeToMinutes(formatTimeDisplay(s.startTime, '07:30'));
+        const eM = timeToMinutes(formatTimeDisplay(s.endTime, '18:30'));
+        if (sM < minStartM) minStartM = sM;
+        if (eM > maxEndM) maxEndM = eM;
+      });
+
+      const totalSpan = maxEndM - minStartM || 1;
+      const startLabel = minutesToTime(minStartM);
+      const endLabel = minutesToTime(maxEndM);
+
+      let barsHtml = '';
+      shifts.forEach(s => {
+        const sM = timeToMinutes(formatTimeDisplay(s.startTime, '07:30'));
+        const eM = timeToMinutes(formatTimeDisplay(s.endTime, '18:30'));
+        const leftPercent = Math.max(0, ((sM - minStartM) / totalSpan) * 100);
+        const widthPercent = Math.min(100 - leftPercent, Math.max(5, ((eM - sM) / totalSpan) * 100));
+        const isRegular = s.jobType === '正社員';
+
+        barsHtml += `
+          <div class="space-y-0.5">
+            <div class="flex justify-between items-center text-[10px]">
+              <span class="font-bold text-slate-700 truncate w-24">${s.staffName} <span class="text-[9px] font-normal text-slate-400">(${s.jobType})</span></span>
+              <span class="font-mono text-slate-500 font-semibold">${s.startTime}〜${s.endTime}</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-3.5 relative overflow-hidden">
+              <div class="absolute h-full rounded-full flex items-center justify-center text-[9px] text-white font-bold tracking-tight shadow-sm ${isRegular ? 'bg-indigo-500' : 'bg-emerald-500'}"
+                   style="left: ${leftPercent}%; width: ${widthPercent}%;">
+                ${formatTimeDisplay(s.startTime)} - ${formatTimeDisplay(s.endTime)}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      return `
+        <div class="space-y-2 pt-1 border-t border-slate-100">
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono font-bold px-0.5">
+            <span>◀ 開所 ${startLabel}</span>
+            <span>閉所 ${endLabel} ▶</span>
+          </div>
+          <div class="space-y-2">${barsHtml}</div>
+        </div>
+      `;
     }
 
     function showDayDetail(dateStr, shifts, coverage) {
@@ -662,7 +734,7 @@
       if (coverage.isShortage) {
         shortageAlertHtml = `
           <div class="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 space-y-1">
-            <div class="font-bold flex items-center text-xs"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-rose-600"></i>条件を満たせていません（人員不足）</div>
+            <div class="font-bold flex items-center text-xs"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-rose-600"></i>条件未達（人員不足）</div>
             ${coverage.shortages.map(s => `
               <div class="text-[11px] text-rose-700 font-mono">
                 ・${s.slot}: 必要 ${s.required}名 に対して <strong>${s.assigned}名配置 (${s.shortage}名不足)</strong>
@@ -676,20 +748,8 @@
         ? coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])}（必要: ${s['必要人数']}名 / ${s['配置優先'] || '指定なし'}）`).join(', ')
         : '設定なし（休所日）';
 
-      let staffListHtml = '';
-      if (shifts.length === 0) {
-        staffListHtml = '<p class="text-slate-400 text-xs py-1">出勤予定者はいません。</p>';
-      } else {
-        staffListHtml = `<div class="space-y-1.5 pt-1">`;
-        shifts.forEach(s => {
-          staffListHtml += `
-            <div class="flex justify-between items-center text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs">
-              <span class="font-bold">${s.staffName} <span class="text-[10px] text-slate-400">(${s.jobType})</span></span>
-              <span class="font-mono text-blue-700 font-semibold text-xs">${formatTimeDisplay(s.startTime)} 〜 ${formatTimeDisplay(s.endTime)}</span>
-            </div>`;
-        });
-        staffListHtml += `</div>`;
-      }
+      // タイムライン帯グラフの生成
+      let timelineChartHtml = generateTimelineChartHtml(coverage.slots, shifts);
 
       detailBox.innerHTML = `
         <div class="flex justify-between items-center border-b border-slate-200 pb-1.5">
@@ -699,7 +759,10 @@
         ${memoHeaderHtml}
         <div class="text-[11px] text-slate-500 font-medium"><i class="fa-regular fa-clock mr-1"></i>開所枠: ${openTimeSummary}</div>
         ${shortageAlertHtml}
-        ${staffListHtml}
+        <div class="pt-1">
+          <span class="text-[11px] font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-chart-gantt text-blue-500 mr-1"></i>勤務帯グラフ（タイムライン）</span>
+          ${timelineChartHtml}
+        </div>
       `;
     }
 
@@ -740,7 +803,7 @@
       });
     }
 
-    // 管理者カレンダー：名前を排除し、行事・開所時間・過不足のみ見やすく表示
+    // 管理者カレンダー：マス内の表記をシンプル化し、時間と行事を見やすく配置
     function renderAdminCalendarGrid() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -752,7 +815,7 @@
 
       for (let i = 0; i < firstDayIndex; i++) {
         const emptyCell = document.createElement('div');
-        emptyCell.className = "min-h-[76px] bg-slate-50/50 rounded-lg";
+        emptyCell.className = "min-h-[72px] bg-slate-50/50 rounded-lg";
         grid.appendChild(emptyCell);
       }
 
@@ -764,18 +827,16 @@
         const isSelected = selectedAdminDate === dateStr;
 
         let bgBorderClass = 'bg-white border-slate-200';
-        let statusBadgeHtml = '';
+        let countBadgeHtml = '';
 
         if (!coverage.isClosed) {
           if (coverage.isShortage) {
             bgBorderClass = 'bg-rose-50 border-rose-300 ring-1 ring-rose-200';
-            statusBadgeHtml = `<div class="bg-rose-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">⚠️ 不足 (${dayShifts.length}/${coverage.totalRequired})</div>`;
+            countBadgeHtml = `<span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">⚠️${dayShifts.length}/${coverage.totalRequired}</span>`;
           } else {
             bgBorderClass = 'bg-emerald-50 border-emerald-300';
-            statusBadgeHtml = `<div class="bg-blue-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">👤 ${dayShifts.length}名 配置中</div>`;
+            countBadgeHtml = `<span class="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">${dayShifts.length}名</span>`;
           }
-        } else {
-          statusBadgeHtml = `<div class="text-[9px] text-slate-300 text-center mt-1">休所</div>`;
         }
 
         if (isSelected) {
@@ -784,7 +845,7 @@
 
         let memoBadgeHtml = '';
         if (coverage.memo) {
-          memoBadgeHtml = `<div class="bg-amber-100 text-amber-800 text-[9px] font-bold px-1 rounded truncate leading-tight mt-0.5 border border-amber-200">🏷️${coverage.memo}</div>`;
+          memoBadgeHtml = `<div class="bg-amber-100 text-amber-900 text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight mt-1 border border-amber-200">🏷️${coverage.memo}</div>`;
         }
 
         let openTimeHtml = '';
@@ -792,21 +853,21 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '14:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-semibold">⏰${sStart}-${sEnd}</div>`;
+          openTimeHtml = `<div class="text-[10px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold">⏰${sStart}-${sEnd}</div>`;
         }
 
         const cell = document.createElement('div');
-        cell.className = `min-h-[76px] p-1.5 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
+        cell.className = `min-h-[72px] p-1.5 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
         cell.onclick = () => selectAdminDate(dateStr);
         cell.innerHTML = `
           <div>
             <div class="flex justify-between items-center">
-              <span class="text-[11px] font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
+              <span class="text-xs font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
+              ${countBadgeHtml}
             </div>
             ${memoBadgeHtml}
             ${openTimeHtml}
           </div>
-          ${statusBadgeHtml}
         `;
         grid.appendChild(cell);
       }
@@ -841,7 +902,6 @@
 
       const coverage = evaluateDayCoverage(dateStr, dayShiftsWithIdx);
       const alertBox = document.getElementById('admin-day-alert-box');
-      const slotsBox = document.getElementById('admin-day-slots-box');
 
       document.getElementById('quick-day-memo').value = coverage.memo || '';
       if (coverage.slots.length > 0) {
@@ -854,11 +914,12 @@
         document.getElementById('quick-day-priority').value = '指定なし';
       }
 
-      if (coverage.slots.length > 0) {
-        slotsBox.innerHTML = `⏰ 開所枠: ` + coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])} (必要 ${s['必要人数']}名 / ${s['配置優先'] || '指定なし'})`).join(', ');
-      } else {
-        slotsBox.innerHTML = '⏰ 開所枠: なし（休所日）';
-      }
+      // 管理者パネル内：タイムライン帯グラフの描画
+      const chartContainer = document.getElementById('admin-timeline-chart-container');
+      chartContainer.innerHTML = `
+        <span class="text-[11px] font-bold text-slate-700 block mb-1"><i class="fa-solid fa-chart-gantt text-blue-500 mr-1"></i>勤務帯グラフ（タイムライン）</span>
+        ${generateTimelineChartHtml(coverage.slots, dayShiftsWithIdx)}
+      `;
 
       if (coverage.isShortage) {
         alertBox.classList.remove('hidden');
@@ -1145,7 +1206,6 @@
       }
     }
 
-    // 行追加：配置優先区分セレクト追加
     function addRequirementRow(date = "平日共通", start = "14:30", end = "18:30", count = 2, priority = "指定なし", memo = "") {
       const container = document.getElementById('admin-req-list');
       const isCommon = !date || String(date).includes('平日共通');
@@ -1213,7 +1273,6 @@
       }
     }
 
-    // 必要人員設定の確実な保存
     function saveRequirements() {
       const rows = document.querySelectorAll('.req-row');
       let requirements = [];
