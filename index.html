@@ -134,7 +134,6 @@
           </div>
           <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-xs"></div>
           
-          <!-- 選択日の詳細パネル（全職員タイムライン帯グラフ付き） -->
           <div id="calendar-day-detail" class="p-3 bg-white border border-slate-200 rounded-xl text-xs hidden space-y-2.5 shadow-sm"></div>
         </div>
       </div>
@@ -167,10 +166,10 @@
           <div class="flex justify-between items-center border-b pb-2">
             <div>
               <h2 class="font-bold text-xs text-slate-800">日別シフト手修正（カレンダー）</h2>
-              <p class="text-[10px] text-slate-400">日付をタップして直感的に手修正・帯グラフ確認</p>
+              <p class="text-[10px] text-slate-400">日付タップで行事・開所時間・全職員の帯グラフ確認</p>
             </div>
             <button onclick="saveAdminShiftEdits()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm">
-              月全体を一括保存
+              変更を保存
             </button>
           </div>
 
@@ -238,7 +237,7 @@
               </div>
             </div>
 
-            <!-- この日だけの保存ボタン -->
+            <!-- この日のシフト変更保存ボタン -->
             <button onclick="saveAdminShiftEdits()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center space-x-1.5">
               <i class="fa-solid fa-floppy-disk"></i>
               <span>この日のシフト変更を保存する</span>
@@ -259,7 +258,7 @@
           <button onclick="saveRequirements()" class="w-full bg-slate-700 hover:bg-slate-800 text-white py-2 rounded-xl font-bold text-xs shadow-sm">設定を保存</button>
         </div>
 
-        <!-- 職員マスタ管理 -->
+        <!-- 職員マスタ管理（★現在値を明示的に表示＆保存） -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="border-b pb-2">
             <h2 class="font-bold text-xs text-slate-800">職員マスタ管理</h2>
@@ -605,7 +604,6 @@
       }
     }
 
-    // 一般カレンダー：マス内のレイアウトをすっきりと整理
     function renderCalendarView() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -670,14 +668,13 @@
       }
     }
 
-    // 全職員対応タイムライン帯グラフ生成関数
     function generateTimelineChartHtml(slots, shifts) {
       if (slots.length === 0 && shifts.length === 0) {
         return '<p class="text-slate-400 text-xs py-2 text-center">開所設定および出勤シフトがありません。</p>';
       }
 
-      let minStartM = 7 * 60;   // 07:00
-      let maxEndM = 19 * 60;    // 19:00
+      let minStartM = 7 * 60;
+      let maxEndM = 19 * 60;
 
       slots.forEach(s => {
         const sM = timeToMinutes(formatTimeDisplay(s['開始時間'], '07:30'));
@@ -765,7 +762,7 @@
       if (coverage.isShortage) {
         shortageAlertHtml = `
           <div class="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 space-y-1">
-            <div class="font-bold flex items-center text-xs"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-rose-600"></i>条件未達（人員不足）</div>
+            <div class="font-bold flex items-center text-xs"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-rose-600"></i>条件を満たせていません（人員不足）</div>
             ${coverage.shortages.map(s => `
               <div class="text-[11px] text-rose-700 font-mono">
                 ・${s.slot}: 必要 ${s.required}名 に対して <strong>${s.assigned}名配置 (${s.shortage}名不足)</strong>
@@ -833,7 +830,6 @@
       });
     }
 
-    // 管理者カレンダー：マス内のレイアウトをすっきりと整理
     function renderAdminCalendarGrid() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -883,7 +879,7 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '14:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
+          openTimeHtml = `<div class="text-[10px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
         }
 
         const cell = document.createElement('div');
@@ -913,7 +909,6 @@
       renderAdminDayShiftList(dateStr);
     }
 
-    // 管理者：選択日の編集パネル描画（ガントチャート＋シフト手修正）
     function renderAdminDayShiftList(dateStr) {
       const panel = document.getElementById('admin-edit-panel');
       panel.classList.remove('hidden');
@@ -945,7 +940,6 @@
         document.getElementById('quick-day-priority').value = '指定なし';
       }
 
-      // 管理者パネル内：全職員ガントチャートを描画
       updateAdminTimelineChart(coverage.slots, dayShiftsWithIdx);
 
       if (coverage.isShortage) {
@@ -1011,7 +1005,6 @@
       `;
     }
 
-    // 時間変更時にガントチャートのみリアルタイム更新（入力欄を壊さない）
     function onShiftTimeInput(originalIndex) {
       const sVal = document.getElementById(`edit-start-${originalIndex}`).value;
       const eVal = document.getElementById(`edit-end-${originalIndex}`).value;
@@ -1146,11 +1139,19 @@
       });
     }
 
+    // 職員マスタ管理：スプレッドシートの現在値を確実に input に表示
     function renderAdminStaffList() {
       const container = document.getElementById('admin-staff-list');
       container.innerHTML = '';
       masterStaffList.forEach(s => {
         const uid = s['LINEユーザーID'];
+        const isRegular = s['雇用区分'] === '正社員';
+
+        // ★スプレッドシートの現在値を正確に抽出
+        const daysVal = (s['週上限日数'] !== undefined && s['週上限日数'] !== '') ? s['週上限日数'] : (isRegular ? 5 : 3);
+        const hoursVal = (s['1日上限時間'] !== undefined && s['1日上限時間'] !== '') ? s['1日上限時間'] : (isRegular ? 8 : 6);
+        const whoursVal = (s['週上限時間'] !== undefined && s['週上限時間'] !== '') ? s['週上限時間'] : (isRegular ? 40 : 20);
+
         const div = document.createElement('div');
         div.className = "p-3 border rounded-2xl bg-white border-slate-200 shadow-sm space-y-2.5";
         div.innerHTML = `
@@ -1161,7 +1162,7 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-[10px] text-slate-500 font-bold block mb-0.5">雇用区分</label>
-              <select id="staff-job-${uid}" class="w-full p-1.5 border rounded-lg bg-slate-50 text-xs">
+              <select id="staff-job-${uid}" class="w-full p-1.5 border rounded-lg bg-slate-50 text-xs font-semibold">
                 <option value="パート" ${s['雇用区分'] === 'パート' ? 'selected' : ''}>パート</option>
                 <option value="正社員" ${s['雇用区分'] === '正社員' ? 'selected' : ''}>正社員</option>
               </select>
@@ -1179,21 +1180,21 @@
             <div>
               <label class="text-[9px] text-slate-500 font-bold block">週上限日数</label>
               <div class="flex items-center space-x-1 mt-0.5">
-                <input type="number" id="staff-days-${uid}" value="${s['週上限日数'] ?? (s['雇用区分'] === '正社員' ? 5 : 3)}" min="1" max="7" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
+                <input type="number" id="staff-days-${uid}" value="${daysVal}" min="1" max="7" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
                 <span class="text-[10px] text-slate-400">日</span>
               </div>
             </div>
             <div>
               <label class="text-[9px] text-slate-500 font-bold block">1日上限時間</label>
               <div class="flex items-center space-x-1 mt-0.5">
-                <input type="number" id="staff-hours-${uid}" value="${s['1日上限時間'] ?? (s['雇用区分'] === '正社員' ? 8 : 6)}" min="1" max="24" step="0.5" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
+                <input type="number" id="staff-hours-${uid}" value="${hoursVal}" min="1" max="24" step="0.5" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
                 <span class="text-[10px] text-slate-400">h</span>
               </div>
             </div>
             <div>
               <label class="text-[9px] text-slate-500 font-bold block">週上限時間</label>
               <div class="flex items-center space-x-1 mt-0.5">
-                <input type="number" id="staff-whours-${uid}" value="${s['週上限時間'] ?? (s['雇用区分'] === '正社員' ? 40 : 20)}" min="1" max="168" step="0.5" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
+                <input type="number" id="staff-whours-${uid}" value="${whoursVal}" min="1" max="168" step="0.5" class="w-full p-1 border rounded bg-white text-xs text-center font-bold">
                 <span class="text-[10px] text-slate-400">h</span>
               </div>
             </div>
@@ -1213,6 +1214,7 @@
       const maxHours = document.getElementById(`staff-hours-${targetUserId}`).value;
       const maxWeeklyHours = document.getElementById(`staff-whours-${targetUserId}`).value;
 
+      document.getElementById('loading').classList.remove('hidden');
       postToGas({
         action: 'updateStaffStatus',
         userId: userId,
@@ -1223,12 +1225,16 @@
         maxHours: maxHours,
         maxWeeklyHours: maxWeeklyHours
       }).then(res => {
+        document.getElementById('loading').classList.add('hidden');
         if (res.success) {
           alert('職員情報を更新しました。');
           loadAdminData();
         } else {
-          alert('更新失敗: ' + res.message);
+          alert('更新失敗: ' + (res.message || '不明なエラー'));
         }
+      }).catch(err => {
+        document.getElementById('loading').classList.add('hidden');
+        alert('通信エラー: ' + err);
       });
     }
 
@@ -1418,6 +1424,7 @@
       } else if (tab === 'admin') {
         document.getElementById('sec-admin').classList.remove('hidden');
         document.getElementById('btn-tab-admin').className = "flex-1 py-2 rounded-lg bg-red-600 text-white shadow-sm font-bold";
+        loadAdminData(); // ★管理者タブを開いた際に最新の職員マスタ情報を常に再取得
       }
     }
   </script>
