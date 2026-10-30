@@ -188,21 +188,29 @@
             <!-- 特定日のクイック設定カード -->
             <div class="bg-white p-2.5 rounded-xl border border-slate-200 space-y-2">
               <div class="flex justify-between items-center">
-                <span class="text-[11px] font-bold text-slate-700"><i class="fa-solid fa-pen-to-square text-amber-500 mr-1"></i>特定日の設定（行事メモ・開所時間）</span>
+                <span class="text-[11px] font-bold text-slate-700"><i class="fa-solid fa-pen-to-square text-amber-500 mr-1"></i>特定日の設定（行事・開所・優先）</span>
                 <button onclick="saveDaySpecificSetting()" class="text-[10px] bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded font-bold">反映</button>
               </div>
-              <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="grid grid-cols-3 gap-1.5 text-xs">
                 <div>
-                  <label class="text-[10px] text-slate-400 font-bold block mb-0.5">行事・メモ</label>
-                  <input type="text" id="quick-day-memo" placeholder="例: 一斉下校, 運動会" class="w-full p-1 border rounded bg-slate-50 text-[11px]">
+                  <label class="text-[9px] text-slate-400 font-bold block mb-0.5">行事・メモ</label>
+                  <input type="text" id="quick-day-memo" placeholder="例: 一斉下校" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
                 </div>
                 <div>
-                  <label class="text-[10px] text-slate-400 font-bold block mb-0.5">開所時間帯</label>
-                  <div class="flex items-center space-x-1">
-                    <input type="time" id="quick-day-start" value="14:30" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
+                  <label class="text-[9px] text-slate-400 font-bold block mb-0.5">開所時間帯</label>
+                  <div class="flex items-center space-x-0.5">
+                    <input type="time" id="quick-day-start" value="14:30" class="w-full p-0.5 border rounded bg-slate-50 text-[10px]">
                     <span class="text-slate-400">-</span>
-                    <input type="time" id="quick-day-end" value="18:30" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
+                    <input type="time" id="quick-day-end" value="18:30" class="w-full p-0.5 border rounded bg-slate-50 text-[10px]">
                   </div>
+                </div>
+                <div>
+                  <label class="text-[9px] text-slate-400 font-bold block mb-0.5">配置優先</label>
+                  <select id="quick-day-priority" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
+                    <option value="指定なし">指定なし</option>
+                    <option value="正規優先">正規優先</option>
+                    <option value="パート優先">パート優先</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -230,8 +238,8 @@
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
           <div class="flex justify-between items-center border-b pb-2">
             <div>
-              <h2 class="font-bold text-xs text-slate-800">開所時間・人員・行事メモ設定</h2>
-              <p class="text-[10px] text-slate-400">平日共通、または特定日（行事や一斉下校）の設定</p>
+              <h2 class="font-bold text-xs text-slate-800">開所時間・人員・配置優先設定</h2>
+              <p class="text-[10px] text-slate-400">平日共通、または特定日（行事・一斉下校）の設定</p>
             </div>
             <button onclick="addRequirementRow()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded font-bold border">+ 追加</button>
           </div>
@@ -266,7 +274,6 @@
     let selectedAdminDate = "";
     let latestAutoAlerts = [];
 
-    // 時間表示フォーマット共通関数（1899年バグ防止）
     function formatTimeDisplay(val, defaultVal = '') {
       if (!val) return defaultVal;
       let str = String(val).trim();
@@ -381,35 +388,37 @@
       const memo = getMemoForDate(dateStr);
 
       if (slots.length === 0) {
-        return { isClosed: true, isShortage: false, shortages: [], slots: [], memo: memo };
+        return { isClosed: true, isShortage: false, shortages: [], slots: [], memo: memo, totalRequired: 0, assignedCount: dayShifts.length };
       }
 
       let shortages = [];
       let isShortage = false;
+      let maxReq = 0;
 
       slots.forEach(slot => {
-        const slotStart = formatTimeDisplay(slot['開始時間'], '08:30');
-        const slotEnd = formatTimeDisplay(slot['終了時間'], '17:30');
+        const slotStart = formatTimeDisplay(slot['開始時間'], '07:30');
+        const slotEnd = formatTimeDisplay(slot['終了時間'], '18:30');
         const required = Number(slot['必要人数'] || 0);
+        if (required > maxReq) maxReq = required;
 
         if (required <= 0) return;
 
-        let assignedCount = 0;
+        let count = 0;
         dayShifts.forEach(s => {
-          const sStart = formatTimeDisplay(s.startTime, '08:30');
-          const sEnd = formatTimeDisplay(s.endTime, '17:30');
+          const sStart = formatTimeDisplay(s.startTime, '07:30');
+          const sEnd = formatTimeDisplay(s.endTime, '18:30');
           if (sStart < slotEnd && slotStart < sEnd) {
-            assignedCount++;
+            count++;
           }
         });
 
-        if (assignedCount < required) {
+        if (count < required) {
           isShortage = true;
           shortages.push({
             slot: `${slotStart}〜${slotEnd}`,
             required: required,
-            assigned: assignedCount,
-            shortage: required - assignedCount
+            assigned: count,
+            shortage: required - count
           });
         }
       });
@@ -419,13 +428,10 @@
         isShortage: isShortage,
         shortages: shortages,
         slots: slots,
-        memo: memo
+        memo: memo,
+        totalRequired: maxReq,
+        assignedCount: dayShifts.length
       };
-    }
-
-    function getShortName(fullName) {
-      if (!fullName) return '';
-      return fullName.split(/[\s ]+/)[0] || fullName;
     }
 
     function generateMonthCalendar(yearMonth) {
@@ -575,6 +581,7 @@
       }
     }
 
+    // 一般カレンダー：名前を排除し、行事・開所時間・人数状況を見やすく表示
     function renderCalendarView() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -586,7 +593,7 @@
 
       for (let i = 0; i < firstDayIndex; i++) {
         const emptyCell = document.createElement('div');
-        emptyCell.className = "min-h-[86px] bg-slate-50/50 rounded-lg";
+        emptyCell.className = "min-h-[76px] bg-slate-50/50 rounded-lg";
         grid.appendChild(emptyCell);
       }
 
@@ -597,20 +604,23 @@
         const coverage = evaluateDayCoverage(dateStr, dayShifts);
 
         let bgBorderClass = 'bg-white border-slate-200';
-        let alertBadgeHtml = '';
+        let statusBadgeHtml = '';
 
         if (!coverage.isClosed) {
           if (coverage.isShortage) {
             bgBorderClass = 'bg-rose-50 border-rose-300 ring-1 ring-rose-200';
-            alertBadgeHtml = `<span class="bg-rose-600 text-white text-[8px] font-bold px-1 rounded">不足</span>`;
+            statusBadgeHtml = `<div class="bg-rose-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">⚠️ 不足 (${dayShifts.length}/${coverage.totalRequired})</div>`;
           } else {
             bgBorderClass = 'bg-emerald-50/70 border-emerald-300';
+            statusBadgeHtml = `<div class="bg-emerald-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">👤 ${dayShifts.length}名 配置中</div>`;
           }
+        } else {
+          statusBadgeHtml = `<div class="text-[9px] text-slate-300 text-center mt-1">休所</div>`;
         }
 
         let memoBadgeHtml = '';
         if (coverage.memo) {
-          memoBadgeHtml = `<div class="bg-amber-100 text-amber-800 text-[8px] font-bold px-1 rounded truncate leading-tight mt-0.5 border border-amber-200">🏷️${coverage.memo}</div>`;
+          memoBadgeHtml = `<div class="bg-amber-100 text-amber-800 text-[9px] font-bold px-1 rounded truncate leading-tight mt-0.5 border border-amber-200">🏷️${coverage.memo}</div>`;
         }
 
         let openTimeHtml = '';
@@ -618,34 +628,21 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '14:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[8px] text-slate-400 font-mono tracking-tighter truncate leading-none mt-0.5">⏰${sStart}-${sEnd}</div>`;
-        }
-
-        let staffBadgesHtml = '';
-        if (dayShifts.length > 0) {
-          staffBadgesHtml += `<div class="space-y-0.5 mt-0.5">`;
-          dayShifts.slice(0, 2).forEach(st => {
-            staffBadgesHtml += `<div class="bg-white/90 text-slate-700 border border-slate-200 rounded px-1 text-[9px] truncate font-semibold leading-tight">${getShortName(st.staffName)}</div>`;
-          });
-          if (dayShifts.length > 2) {
-            staffBadgesHtml += `<div class="text-[8px] text-slate-500 font-bold text-center leading-none">+${dayShifts.length - 2}名</div>`;
-          }
-          staffBadgesHtml += `</div>`;
+          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-semibold">⏰${sStart}-${sEnd}</div>`;
         }
 
         const cell = document.createElement('div');
-        cell.className = `min-h-[86px] p-1 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
+        cell.className = `min-h-[76px] p-1.5 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
         cell.onclick = () => showDayDetail(dateStr, dayShifts, coverage);
         cell.innerHTML = `
           <div>
             <div class="flex justify-between items-center">
-              <span class="text-[10px] font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
-              ${alertBadgeHtml}
+              <span class="text-[11px] font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
             </div>
             ${memoBadgeHtml}
             ${openTimeHtml}
           </div>
-          ${staffBadgesHtml}
+          ${statusBadgeHtml}
         `;
         grid.appendChild(cell);
       }
@@ -676,7 +673,7 @@
       }
 
       let openTimeSummary = coverage.slots.length > 0
-        ? coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])}（必要: ${s['必要人数']}名）`).join(', ')
+        ? coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])}（必要: ${s['必要人数']}名 / ${s['配置優先'] || '指定なし'}）`).join(', ')
         : '設定なし（休所日）';
 
       let staffListHtml = '';
@@ -743,6 +740,7 @@
       });
     }
 
+    // 管理者カレンダー：名前を排除し、行事・開所時間・過不足のみ見やすく表示
     function renderAdminCalendarGrid() {
       const yearMonth = document.getElementById('target-month').value;
       const [year, month] = yearMonth.split('-').map(Number);
@@ -754,7 +752,7 @@
 
       for (let i = 0; i < firstDayIndex; i++) {
         const emptyCell = document.createElement('div');
-        emptyCell.className = "min-h-[86px] bg-slate-50/50 rounded-lg";
+        emptyCell.className = "min-h-[76px] bg-slate-50/50 rounded-lg";
         grid.appendChild(emptyCell);
       }
 
@@ -766,15 +764,18 @@
         const isSelected = selectedAdminDate === dateStr;
 
         let bgBorderClass = 'bg-white border-slate-200';
-        let alertBadgeHtml = '';
+        let statusBadgeHtml = '';
 
         if (!coverage.isClosed) {
           if (coverage.isShortage) {
             bgBorderClass = 'bg-rose-50 border-rose-300 ring-1 ring-rose-200';
-            alertBadgeHtml = `<span class="bg-rose-600 text-white text-[8px] font-bold px-1 rounded">不足</span>`;
+            statusBadgeHtml = `<div class="bg-rose-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">⚠️ 不足 (${dayShifts.length}/${coverage.totalRequired})</div>`;
           } else {
             bgBorderClass = 'bg-emerald-50 border-emerald-300';
+            statusBadgeHtml = `<div class="bg-blue-600 text-white text-[9px] font-bold px-1 py-0.5 rounded text-center leading-none mt-1 shadow-sm">👤 ${dayShifts.length}名 配置中</div>`;
           }
+        } else {
+          statusBadgeHtml = `<div class="text-[9px] text-slate-300 text-center mt-1">休所</div>`;
         }
 
         if (isSelected) {
@@ -783,7 +784,7 @@
 
         let memoBadgeHtml = '';
         if (coverage.memo) {
-          memoBadgeHtml = `<div class="bg-amber-100 text-amber-800 text-[8px] font-bold px-1 rounded truncate leading-tight mt-0.5 border border-amber-200">🏷️${coverage.memo}</div>`;
+          memoBadgeHtml = `<div class="bg-amber-100 text-amber-800 text-[9px] font-bold px-1 rounded truncate leading-tight mt-0.5 border border-amber-200">🏷️${coverage.memo}</div>`;
         }
 
         let openTimeHtml = '';
@@ -791,34 +792,21 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '14:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[8px] text-slate-400 font-mono tracking-tighter truncate leading-none mt-0.5">⏰${sStart}-${sEnd}</div>`;
-        }
-
-        let staffBadgesHtml = '';
-        if (dayShifts.length > 0) {
-          staffBadgesHtml += `<div class="space-y-0.5 mt-0.5">`;
-          dayShifts.slice(0, 2).forEach(st => {
-            staffBadgesHtml += `<div class="bg-white/90 text-slate-700 border border-slate-200 rounded px-1 text-[9px] truncate font-semibold leading-tight">${getShortName(st.staffName)}</div>`;
-          });
-          if (dayShifts.length > 2) {
-            staffBadgesHtml += `<div class="text-[8px] text-slate-500 font-bold text-center leading-none">+${dayShifts.length - 2}名</div>`;
-          }
-          staffBadgesHtml += `</div>`;
+          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-semibold">⏰${sStart}-${sEnd}</div>`;
         }
 
         const cell = document.createElement('div');
-        cell.className = `min-h-[86px] p-1 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
+        cell.className = `min-h-[76px] p-1.5 border rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm ${bgBorderClass}`;
         cell.onclick = () => selectAdminDate(dateStr);
         cell.innerHTML = `
           <div>
             <div class="flex justify-between items-center">
-              <span class="text-[10px] font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
-              ${alertBadgeHtml}
+              <span class="text-[11px] font-bold ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-700'}">${day}</span>
             </div>
             ${memoBadgeHtml}
             ${openTimeHtml}
           </div>
-          ${staffBadgesHtml}
+          ${statusBadgeHtml}
         `;
         grid.appendChild(cell);
       }
@@ -859,13 +847,15 @@
       if (coverage.slots.length > 0) {
         document.getElementById('quick-day-start').value = formatTimeDisplay(coverage.slots[0]['開始時間'], '14:30');
         document.getElementById('quick-day-end').value = formatTimeDisplay(coverage.slots[0]['終了時間'], '18:30');
+        document.getElementById('quick-day-priority').value = coverage.slots[0]['配置優先'] || '指定なし';
       } else {
         document.getElementById('quick-day-start').value = '14:30';
         document.getElementById('quick-day-end').value = '18:30';
+        document.getElementById('quick-day-priority').value = '指定なし';
       }
 
       if (coverage.slots.length > 0) {
-        slotsBox.innerHTML = `⏰ 開所枠: ` + coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])} (必要 ${s['必要人数']}名)`).join(', ');
+        slotsBox.innerHTML = `⏰ 開所枠: ` + coverage.slots.map(s => `${formatTimeDisplay(s['開始時間'])}〜${formatTimeDisplay(s['終了時間'])} (必要 ${s['必要人数']}名 / ${s['配置優先'] || '指定なし'})`).join(', ');
       } else {
         slotsBox.innerHTML = '⏰ 開所枠: なし（休所日）';
       }
@@ -929,11 +919,13 @@
       const memo = document.getElementById('quick-day-memo').value.trim();
       const start = document.getElementById('quick-day-start').value;
       const end = document.getElementById('quick-day-end').value;
+      const priority = document.getElementById('quick-day-priority').value;
 
       let foundIndex = masterRequirements.findIndex(r => String(r['対象日']).substring(0, 10) === selectedAdminDate);
       if (foundIndex >= 0) {
         masterRequirements[foundIndex]['開始時間'] = start;
         masterRequirements[foundIndex]['終了時間'] = end;
+        masterRequirements[foundIndex]['配置優先'] = priority;
         masterRequirements[foundIndex]['メモ'] = memo;
       } else {
         masterRequirements.push({
@@ -941,6 +933,7 @@
           '開始時間': start,
           '終了時間': end,
           '必要人数': 2,
+          '配置優先': priority,
           'メモ': memo
         });
       }
@@ -951,6 +944,7 @@
         startTime: r['開始時間'],
         endTime: r['終了時間'],
         count: r['必要人数'],
+        priority: r['配置優先'] || '指定なし',
         memo: r['メモ'] || ''
       }));
 
@@ -958,8 +952,9 @@
         document.getElementById('loading').classList.add('hidden');
         if (res.success) {
           alert(`${selectedAdminDate} の設定を反映しました！`);
-          renderAdminRequirements();
-          renderAdminCalendarGrid();
+          loadAdminData();
+        } else {
+          alert('設定反映失敗: ' + res.message);
         }
       });
     }
@@ -1134,14 +1129,24 @@
     function renderAdminRequirements() {
       const container = document.getElementById('admin-req-list');
       container.innerHTML = '';
-      if (masterRequirements.length === 0) {
+      if (!masterRequirements || masterRequirements.length === 0) {
         addRequirementRow();
       } else {
-        masterRequirements.forEach(r => addRequirementRow(r['対象日'], r['開始時間'], r['終了時間'], r['必要人数'], r['メモ']));
+        masterRequirements.forEach(r => {
+          addRequirementRow(
+            r['対象日'], 
+            r['開始時間'], 
+            r['終了時間'], 
+            r['必要人数'], 
+            r['配置優先'] || '指定なし', 
+            r['メモ'] || ''
+          );
+        });
       }
     }
 
-    function addRequirementRow(date = "平日共通", start = "14:30", end = "18:30", count = 2, memo = "") {
+    // 行追加：配置優先区分セレクト追加
+    function addRequirementRow(date = "平日共通", start = "14:30", end = "18:30", count = 2, priority = "指定なし", memo = "") {
       const container = document.getElementById('admin-req-list');
       const isCommon = !date || String(date).includes('平日共通');
       const formattedDate = isCommon ? '' : String(date).substring(0, 10);
@@ -1161,23 +1166,31 @@
           </div>
           <button onclick="this.closest('.req-row').remove()" class="text-red-500 hover:text-red-700 font-bold px-2 py-0.5 text-xs"><i class="fa-solid fa-trash-can"></i></button>
         </div>
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="text-[9px] text-slate-400 font-bold block mb-0.5">行事・メモ（カレンダーに表示）</label>
-            <input type="text" value="${memo || ''}" placeholder="例: 一斉下校, 運動会" class="req-memo w-full p-1 border rounded bg-white text-[11px]">
+            <label class="text-[9px] text-slate-400 font-bold block mb-0.5">行事・メモ</label>
+            <input type="text" value="${memo || ''}" placeholder="例: 一斉下校" class="req-memo w-full p-1 border rounded bg-white text-[10px]">
           </div>
-          <div class="flex items-center space-x-1 justify-end">
-            <div class="flex-1">
-              <label class="text-[9px] text-slate-400 font-bold block mb-0.5">開所時間帯</label>
-              <div class="flex items-center space-x-0.5">
-                <input type="time" value="${formatTimeDisplay(start, '14:30')}" class="req-start p-1 border rounded bg-white text-[10px] w-full">
-                <span>-</span>
-                <input type="time" value="${formatTimeDisplay(end, '18:30')}" class="req-end p-1 border rounded bg-white text-[10px] w-full">
-              </div>
+          <div>
+            <label class="text-[9px] text-slate-400 font-bold block mb-0.5">開所時間帯</label>
+            <div class="flex items-center space-x-0.5">
+              <input type="time" value="${formatTimeDisplay(start, '14:30')}" class="req-start p-1 border rounded bg-white text-[10px] w-full">
+              <span>-</span>
+              <input type="time" value="${formatTimeDisplay(end, '18:30')}" class="req-end p-1 border rounded bg-white text-[10px] w-full">
             </div>
-            <div class="w-12 text-center">
-              <label class="text-[9px] text-slate-400 font-bold block mb-0.5">必要人数</label>
+          </div>
+          <div class="grid grid-cols-2 gap-1">
+            <div>
+              <label class="text-[9px] text-slate-400 font-bold block mb-0.5">人数</label>
               <input type="number" value="${count}" min="0" max="20" class="req-count w-full p-1 border rounded bg-white text-[11px] text-center font-bold">
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-400 font-bold block mb-0.5">優先</label>
+              <select class="req-priority w-full p-1 border rounded bg-white text-[10px] font-semibold">
+                <option value="指定なし" ${priority === '指定なし' ? 'selected' : ''}>不問</option>
+                <option value="正規優先" ${priority === '正規優先' ? 'selected' : ''}>正規</option>
+                <option value="パート優先" ${priority === 'パート優先' ? 'selected' : ''}>パート</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1200,6 +1213,7 @@
       }
     }
 
+    // 必要人員設定の確実な保存
     function saveRequirements() {
       const rows = document.querySelectorAll('.req-row');
       let requirements = [];
@@ -1207,7 +1221,9 @@
 
       rows.forEach(r => {
         const type = r.querySelector('.req-type').value;
-        const dateVal = r.querySelector('.req-date').value;
+        const dateInput = r.querySelector('.req-date');
+        const dateVal = dateInput ? dateInput.value : '';
+
         if (type === '特定日' && !dateVal) {
           alert('日付指定が選択されている行で、日付が未入力です。カレンダーから日付を選択してください。');
           hasError = true;
@@ -1219,17 +1235,26 @@
           startTime: r.querySelector('.req-start').value,
           endTime: r.querySelector('.req-end').value,
           count: r.querySelector('.req-count').value,
+          priority: r.querySelector('.req-priority').value,
           memo: r.querySelector('.req-memo').value.trim()
         });
       });
 
       if (hasError) return;
 
+      document.getElementById('loading').classList.remove('hidden');
       postToGas({ action: 'saveRequirements', userId: userId, requirements: requirements }).then(res => {
+        document.getElementById('loading').classList.add('hidden');
         if (res.success) {
-          alert('開所・人員設定を保存しました。');
+          alert('開所・人員設定を保存しました！');
+          loadAdminData();
           loadConfirmedShifts();
+        } else {
+          alert('保存に失敗しました: ' + (res.message || '不明なエラー'));
         }
+      }).catch(err => {
+        document.getElementById('loading').classList.add('hidden');
+        alert('通信エラーが発生しました: ' + err);
       });
     }
 
