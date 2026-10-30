@@ -16,6 +16,14 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans pb-12">
 
+  <!-- ★全画面ダークオーバーレイ・ローディング表示 -->
+  <div id="loading" class="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center space-y-3 hidden">
+    <div class="bg-white px-6 py-5 rounded-2xl shadow-2xl flex flex-col items-center space-y-3 min-w-[180px]">
+      <div class="inline-block animate-spin rounded-full h-9 w-9 border-4 border-green-500 border-t-transparent"></div>
+      <p id="loading-msg" class="text-xs text-slate-700 font-bold tracking-wide">通信処理中...</p>
+    </div>
+  </div>
+
   <!-- ヘッダー -->
   <header class="line-green text-white px-4 py-3 shadow-md sticky top-0 z-40 flex justify-between items-center">
     <div class="flex items-center space-x-2">
@@ -29,12 +37,6 @@
   </header>
 
   <main class="max-w-md mx-auto p-3 space-y-3">
-
-    <!-- ローディング -->
-    <div id="loading" class="text-center py-12 space-y-3">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-500 border-t-transparent"></div>
-      <p id="loading-msg" class="text-xs text-slate-500 font-bold">データを読み込み中...</p>
-    </div>
 
     <!-- 初回新規登録 -->
     <div id="sec-register" class="bg-white p-5 rounded-2xl shadow-sm space-y-4 hidden border border-slate-200">
@@ -169,7 +171,7 @@
               <p class="text-[10px] text-slate-400">日付タップで行事・開所時間・全職員の帯グラフ確認</p>
             </div>
             <button onclick="saveAdminShiftEdits()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm">
-              変更を保存
+              月全体を一括保存
             </button>
           </div>
 
@@ -185,34 +187,29 @@
               <span id="admin-edit-count-badge" class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">0名</span>
             </div>
 
-            <!-- 特定日のクイック設定カード -->
+            <!-- ★特定日の開所・人員設定カード（複数スロット完全対応） -->
             <div class="bg-white p-2.5 rounded-xl border border-slate-200 space-y-2">
               <div class="flex justify-between items-center">
-                <span class="text-[11px] font-bold text-slate-700"><i class="fa-solid fa-pen-to-square text-amber-500 mr-1"></i>特定日の設定（行事・開所・優先）</span>
-                <button onclick="saveDaySpecificSetting()" class="text-[10px] bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded font-bold">反映</button>
+                <span class="text-[11px] font-bold text-slate-700 flex items-center">
+                  <i class="fa-solid fa-pen-to-square text-amber-500 mr-1.5"></i>この日の開所・人員・行事設定
+                </span>
+                <button onclick="addDaySlotRow()" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold border border-slate-300">
+                  + 時間帯追加
+                </button>
               </div>
-              <div class="grid grid-cols-3 gap-1.5 text-xs">
-                <div>
-                  <label class="text-[9px] text-slate-400 font-bold block mb-0.5">行事・メモ</label>
-                  <input type="text" id="quick-day-memo" placeholder="例: 一斉下校" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
-                </div>
-                <div>
-                  <label class="text-[9px] text-slate-400 font-bold block mb-0.5">開所時間帯</label>
-                  <div class="flex items-center space-x-0.5">
-                    <input type="time" id="quick-day-start" value="14:30" class="w-full p-0.5 border rounded bg-slate-50 text-[10px]">
-                    <span class="text-slate-400">-</span>
-                    <input type="time" id="quick-day-end" value="18:30" class="w-full p-0.5 border rounded bg-slate-50 text-[10px]">
-                  </div>
-                </div>
-                <div>
-                  <label class="text-[9px] text-slate-400 font-bold block mb-0.5">配置優先</label>
-                  <select id="quick-day-priority" class="w-full p-1 border rounded bg-slate-50 text-[10px]">
-                    <option value="指定なし">指定なし</option>
-                    <option value="正規優先">正規優先</option>
-                    <option value="パート優先">パート優先</option>
-                  </select>
-                </div>
+
+              <!-- 行事メモ（日共通） -->
+              <div>
+                <label class="text-[9px] text-slate-400 font-bold block mb-0.5">行事・メモ（カレンダー表示）</label>
+                <input type="text" id="quick-day-memo" placeholder="例: 県民の日ホリデー, 一斉下校" class="w-full p-1.5 border rounded-lg bg-slate-50 text-xs">
               </div>
+
+              <!-- 時間帯スロット群の一覧コンテナ -->
+              <div id="quick-day-slots-list" class="space-y-1.5 pt-1"></div>
+
+              <button onclick="saveDaySpecificSettings()" class="w-full bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-xs font-bold shadow-sm">
+                この日の開所・人員設定を反映する
+              </button>
             </div>
 
             <div id="admin-day-alert-box" class="hidden p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs space-y-1"></div>
@@ -284,6 +281,16 @@
     let selectedAdminDate = "";
     let latestAutoAlerts = [];
 
+    // ローディング表示ヘルパー
+    function showLoading(msg = "処理中...") {
+      document.getElementById('loading-msg').innerText = msg;
+      document.getElementById('loading').classList.remove('hidden');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading').classList.add('hidden');
+    }
+
     function formatTimeDisplay(val, defaultVal = '') {
       if (!val && val !== 0) return defaultVal;
       let str = String(val).trim();
@@ -310,6 +317,7 @@
     }
 
     window.onload = function() {
+      showLoading("認証中...");
       const today = new Date();
       today.setMonth(today.getMonth() + 1);
       document.getElementById('target-month').value = today.toISOString().slice(0, 7);
@@ -322,10 +330,16 @@
             liff.getProfile().then(profile => {
               userId = profile.userId;
               checkUserProfile();
-            }).catch(err => alert("プロフィール取得失敗: " + err));
+            }).catch(err => {
+              hideLoading();
+              alert("プロフィール取得失敗: " + err);
+            });
           }
         })
-        .catch(err => alert("LIFF初期化エラー: " + err));
+        .catch(err => {
+          hideLoading();
+          alert("LIFF初期化エラー: " + err);
+        });
     };
 
     function postToGas(payload) {
@@ -338,7 +352,7 @@
 
     function checkUserProfile() {
       postToGas({ action: 'checkProfile', userId: userId }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         if (res.isBlocked) {
           alert(res.message);
           return;
@@ -355,6 +369,9 @@
         } else {
           document.getElementById('sec-register').classList.remove('hidden');
         }
+      }).catch(err => {
+        hideLoading();
+        alert("通信エラー: " + err);
       });
     }
 
@@ -362,9 +379,10 @@
       const name = document.getElementById('input-staff-name').value.trim();
       const jobType = document.getElementById('select-job-type').value;
       if (!name) { alert("お名前を入力してください。"); return; }
-      document.getElementById('loading').classList.remove('hidden');
+      showLoading("登録処理中...");
       document.getElementById('sec-register').classList.add('hidden');
       postToGas({ action: 'registerStaff', userId: userId, name: name, jobType: jobType }).then(res => {
+        hideLoading();
         if (res.success) checkUserProfile();
       });
     }
@@ -405,9 +423,6 @@
       return '';
     }
 
-    /**
-     * ★厳密な30分刻みタイムライン充足判定エンジン（常時必要人数を満たしているかチェック）
-     */
     function evaluateDayCoverage(dateStr, dayShifts) {
       const slots = getSlotsForDate(dateStr);
       const memo = getMemoForDate(dateStr);
@@ -416,7 +431,6 @@
         return { isClosed: true, isShortage: false, shortages: [], slots: [], memo: memo, totalRequired: 0, minAssigned: dayShifts.length, maxRequired: 0 };
       }
 
-      // 1. 各30分スライスの必要人数を算出 (0:00〜24:00 を48スライス)
       let requiredTimeline = new Array(48).fill(0);
       let assignedTimeline = new Array(48).fill(0);
       let maxReq = 0;
@@ -436,7 +450,6 @@
         }
       });
 
-      // 2. 実際のシフトから各30分スライスの配置人数をカウント
       dayShifts.forEach(s => {
         const sStart = timeToMinutes(formatTimeDisplay(s.startTime, '07:30'));
         const sEnd = timeToMinutes(formatTimeDisplay(s.endTime, '18:30'));
@@ -449,7 +462,6 @@
         }
       });
 
-      // 3. 不足しているスライス区間を特定
       let shortages = [];
       let isShortage = false;
       let curShortage = null;
@@ -606,10 +618,13 @@
           endTime: type === '出勤希望' ? document.getElementById(`end-${dateStr}`).value : ''
         });
       });
-      document.getElementById('loading').classList.remove('hidden');
+      showLoading("希望シフトを送信中...");
       postToGas({ action: 'saveRequests', userId: userId, yearMonth: yearMonth, requests: requests }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         if (res.success) alert('希望シフトを送信しました！');
+      }).catch(err => {
+        hideLoading();
+        alert('送信エラー: ' + err);
       });
     }
 
@@ -748,7 +763,6 @@
         rulerCols += `<div class="flex-1 text-[9px] text-slate-400 text-left border-l border-slate-200 pl-0.5">${h}</div>`;
       }
 
-      // 開所スロット帯（必要人数のラベル付き）
       let openBands = '';
       slots.forEach(s => {
         const sM = timeToMinutes(formatTimeDisplay(s['開始時間'], '07:30'));
@@ -933,7 +947,7 @@
           const s = coverage.slots[0];
           const sStart = formatTimeDisplay(s['開始時間'], '07:30');
           const sEnd = formatTimeDisplay(s['終了時間'], '18:30');
-          openTimeHtml = `<div class="text-[10px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
+          openTimeHtml = `<div class="text-[9px] text-slate-500 font-mono tracking-tighter truncate leading-none mt-1 font-bold whitespace-nowrap">⏰${sStart.replace(/^0/,'')}-${sEnd.replace(/^0/,'')}</div>`;
         }
 
         const cell = document.createElement('div');
@@ -963,6 +977,7 @@
       renderAdminDayShiftList(dateStr);
     }
 
+    // 管理者：選択日の編集パネル描画（特定日の複数スロット完全対応）
     function renderAdminDayShiftList(dateStr) {
       const panel = document.getElementById('admin-edit-panel');
       panel.classList.remove('hidden');
@@ -983,20 +998,15 @@
       const coverage = evaluateDayCoverage(dateStr, dayShiftsWithIdx);
       const alertBox = document.getElementById('admin-day-alert-box');
 
+      // 行事メモの初期値をセット
       document.getElementById('quick-day-memo').value = coverage.memo || '';
-      if (coverage.slots.length > 0) {
-        document.getElementById('quick-day-start').value = formatTimeDisplay(coverage.slots[0]['開始時間'], '07:30');
-        document.getElementById('quick-day-end').value = formatTimeDisplay(coverage.slots[0]['終了時間'], '18:30');
-        document.getElementById('quick-day-priority').value = coverage.slots[0]['配置優先'] || '指定なし';
-      } else {
-        document.getElementById('quick-day-start').value = '07:30';
-        document.getElementById('quick-day-end').value = '18:30';
-        document.getElementById('quick-day-priority').value = '指定なし';
-      }
 
+      // ★特定日の複数時間帯スロット一覧を描画
+      renderDaySpecificSlots(dateStr);
+
+      // ガントチャート更新
       updateAdminTimelineChart(coverage.slots, dayShiftsWithIdx);
 
-      // ★不足があれば明確な警告文を表示
       if (coverage.isShortage) {
         alertBox.classList.remove('hidden');
         alertBox.innerHTML = `
@@ -1047,6 +1057,119 @@
       });
     }
 
+    // ★特定日スロット一覧の描画（複数行対応）
+    function renderDaySpecificSlots(dateStr) {
+      const container = document.getElementById('quick-day-slots-list');
+      container.innerHTML = '';
+
+      // この日（特定日）として登録されているスロットを抽出
+      let daySlots = masterRequirements.filter(r => String(r['対象日']).substring(0, 10) === dateStr);
+
+      // 特定日設定がまだない場合は、平日共通設定を雛形として読み込む
+      if (daySlots.length === 0) {
+        const d = new Date(dateStr);
+        const day = d.getDay();
+        if (day >= 1 && day <= 5) {
+          daySlots = masterRequirements.filter(r => {
+            const val = String(r['対象日'] || '').trim();
+            return val === '' || val.includes('平日共通');
+          });
+        }
+      }
+
+      if (daySlots.length === 0) {
+        addDaySlotRow("07:30", "18:30", 2, "指定なし");
+        return;
+      }
+
+      daySlots.forEach(s => {
+        addDaySlotRow(
+          formatTimeDisplay(s['開始時間'], '07:30'),
+          formatTimeDisplay(s['終了時間'], '18:30'),
+          s['必要人数'] || 2,
+          s['配置優先'] || '指定なし'
+        );
+      });
+    }
+
+    // スロット行を追加
+    function addDaySlotRow(start = "07:30", end = "18:30", count = 2, priority = "指定なし") {
+      const container = document.getElementById('quick-day-slots-list');
+      const div = document.createElement('div');
+      div.className = "flex items-center space-x-1.5 day-slot-row bg-slate-50 p-1.5 rounded-lg border border-slate-200 text-xs";
+      div.innerHTML = `
+        <div class="flex items-center space-x-0.5">
+          <input type="time" value="${start}" class="slot-start p-1 border rounded bg-white text-[10px]">
+          <span class="text-slate-400">-</span>
+          <input type="time" value="${end}" class="slot-end p-1 border rounded bg-white text-[10px]">
+        </div>
+        <div class="flex items-center space-x-0.5">
+          <input type="number" value="${count}" min="1" max="20" class="slot-count w-9 p-1 border rounded bg-white text-[10px] text-center font-bold">
+          <span class="text-[10px] text-slate-400">名</span>
+        </div>
+        <div class="flex-1">
+          <select class="slot-priority w-full p-1 border rounded bg-white text-[10px] font-semibold">
+            <option value="指定なし" ${priority === '指定なし' ? 'selected' : ''}>不問</option>
+            <option value="正規優先" ${priority === '正規優先' ? 'selected' : ''}>正規</option>
+            <option value="パート優先" ${priority === 'パート優先' ? 'selected' : ''}>パート</option>
+          </select>
+        </div>
+        <button onclick="this.closest('.day-slot-row').remove()" class="text-red-500 hover:text-red-700 font-bold px-1 text-xs">×</button>
+      `;
+      container.appendChild(div);
+    }
+
+    // ★特定日の複数スロット設定を保存・反映
+    function saveDaySpecificSettings() {
+      if (!selectedAdminDate) return;
+      const memo = document.getElementById('quick-day-memo').value.trim();
+      const rows = document.querySelectorAll('.day-slot-row');
+
+      if (rows.length === 0) {
+        alert('時間帯スロットが1つもありません。「+ 時間帯追加」を押してください。');
+        return;
+      }
+
+      // 既存の masterRequirements からこの日（特定日）の古い設定をすべて削除
+      masterRequirements = masterRequirements.filter(r => String(r['対象日']).substring(0, 10) !== selectedAdminDate);
+
+      // 画面上の全スロット行を新しい特定日設定として追加
+      rows.forEach(r => {
+        masterRequirements.push({
+          '対象日': selectedAdminDate,
+          '開始時間': r.querySelector('.slot-start').value,
+          '終了時間': r.querySelector('.slot-end').value,
+          '必要人数': Number(r.querySelector('.slot-count').value || 2),
+          '配置優先': r.querySelector('.slot-priority').value,
+          'メモ': memo
+        });
+      });
+
+      showLoading("開所・人員設定を保存中...");
+
+      let reqPayload = masterRequirements.map(r => ({
+        date: r['対象日'],
+        startTime: r['開始時間'],
+        endTime: r['終了時間'],
+        count: r['必要人数'],
+        priority: r['配置優先'] || '指定なし',
+        memo: r['メモ'] || ''
+      }));
+
+      postToGas({ action: 'saveRequirements', userId: userId, requirements: reqPayload }).then(res => {
+        hideLoading();
+        if (res.success) {
+          alert(`${selectedAdminDate} の開所・人員設定（${rows.length}件）を反映しました！`);
+          loadAdminData();
+        } else {
+          alert('設定反映失敗: ' + res.message);
+        }
+      }).catch(err => {
+        hideLoading();
+        alert('通信エラー: ' + err);
+      });
+    }
+
     function updateAdminTimelineChart(slots, shifts) {
       const chartContainer = document.getElementById('admin-timeline-chart-container');
       if (!chartContainer) return;
@@ -1067,7 +1190,6 @@
 
       updateAdminTimelineChart(coverage.slots, dayShifts);
 
-      // アラートのリアルタイム更新
       const alertBox = document.getElementById('admin-day-alert-box');
       if (coverage.isShortage) {
         alertBox.classList.remove('hidden');
@@ -1135,51 +1257,6 @@
       renderAdminDayShiftList(selectedAdminDate);
     }
 
-    function saveDaySpecificSetting() {
-      if (!selectedAdminDate) return;
-      const memo = document.getElementById('quick-day-memo').value.trim();
-      const start = document.getElementById('quick-day-start').value;
-      const end = document.getElementById('quick-day-end').value;
-      const priority = document.getElementById('quick-day-priority').value;
-
-      let foundIndex = masterRequirements.findIndex(r => String(r['対象日']).substring(0, 10) === selectedAdminDate);
-      if (foundIndex >= 0) {
-        masterRequirements[foundIndex]['開始時間'] = start;
-        masterRequirements[foundIndex]['終了時間'] = end;
-        masterRequirements[foundIndex]['配置優先'] = priority;
-        masterRequirements[foundIndex]['メモ'] = memo;
-      } else {
-        masterRequirements.push({
-          '対象日': selectedAdminDate,
-          '開始時間': start,
-          '終了時間': end,
-          '必要人数': 2,
-          '配置優先': priority,
-          'メモ': memo
-        });
-      }
-
-      document.getElementById('loading').classList.remove('hidden');
-      let reqPayload = masterRequirements.map(r => ({
-        date: r['対象日'],
-        startTime: r['開始時間'],
-        endTime: r['終了時間'],
-        count: r['必要人数'],
-        priority: r['配置優先'] || '指定なし',
-        memo: r['メモ'] || ''
-      }));
-
-      postToGas({ action: 'saveRequirements', userId: userId, requirements: reqPayload }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
-        if (res.success) {
-          alert(`${selectedAdminDate} の設定を反映しました！`);
-          loadAdminData();
-        } else {
-          alert('設定反映失敗: ' + res.message);
-        }
-      });
-    }
-
     function updateAdminStaffSelectOptions() {
       const select = document.getElementById('new-shift-staff');
       if (!select) return;
@@ -1194,20 +1271,23 @@
 
     function saveAdminShiftEdits() {
       const yearMonth = document.getElementById('target-month').value;
-      document.getElementById('loading').classList.remove('hidden');
+      showLoading("シフト変更を保存中...");
       postToGas({
         action: 'saveConfirmedShifts',
         userId: userId,
         yearMonth: yearMonth,
         shifts: currentConfirmedShifts
       }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         if (res.success) {
           alert('修正内容を保存しました！');
           loadConfirmedShifts();
         } else {
           alert('保存失敗: ' + res.message);
         }
+      }).catch(err => {
+        hideLoading();
+        alert('通信エラー: ' + err);
       });
     }
 
@@ -1284,7 +1364,7 @@
       const maxHours = document.getElementById(`staff-hours-${targetUserId}`).value;
       const maxWeeklyHours = document.getElementById(`staff-whours-${targetUserId}`).value;
 
-      document.getElementById('loading').classList.remove('hidden');
+      showLoading("職員情報を更新中...");
       postToGas({
         action: 'updateStaffStatus',
         userId: userId,
@@ -1295,7 +1375,7 @@
         maxHours: maxHours,
         maxWeeklyHours: maxWeeklyHours
       }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         if (res.success) {
           alert('職員情報を更新しました。');
           loadAdminData();
@@ -1303,7 +1383,7 @@
           alert('更新失敗: ' + (res.message || '不明なエラー'));
         }
       }).catch(err => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         alert('通信エラー: ' + err);
       });
     }
@@ -1422,9 +1502,9 @@
 
       if (hasError) return;
 
-      document.getElementById('loading').classList.remove('hidden');
+      showLoading("開所・人員設定を保存中...");
       postToGas({ action: 'saveRequirements', userId: userId, requirements: requirements }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         if (res.success) {
           alert('開所・人員設定を保存しました！');
           loadAdminData();
@@ -1433,7 +1513,7 @@
           alert('保存に失敗しました: ' + (res.message || '不明なエラー'));
         }
       }).catch(err => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         alert('通信エラーが発生しました: ' + err);
       });
     }
@@ -1442,9 +1522,9 @@
       const yearMonth = document.getElementById('target-month').value;
       if (!confirm(`${yearMonth} のシフトを自動作成しますか？\n（同月の確定シフトは上書きされます）`)) return;
 
-      document.getElementById('loading').classList.remove('hidden');
+      showLoading("シフトを自動最適化作成中...");
       postToGas({ action: 'generateAutoShift', userId: userId, yearMonth: yearMonth }).then(res => {
-        document.getElementById('loading').classList.add('hidden');
+        hideLoading();
         if (res.success) {
           latestAutoAlerts = res.alerts || [];
           alert(`自動作成が完了しました（割当数: ${res.count}件）`);
@@ -1474,6 +1554,9 @@
         } else {
           alert('エラー: ' + res.message);
         }
+      }).catch(err => {
+        hideLoading();
+        alert('通信エラー: ' + err);
       });
     }
 
